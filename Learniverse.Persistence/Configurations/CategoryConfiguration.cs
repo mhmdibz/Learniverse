@@ -1,0 +1,25 @@
+﻿using Learniverse.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+public class CategoryConfiguration : IEntityTypeConfiguration<Category>
+{
+    public void Configure(EntityTypeBuilder<Category> builder)
+    {
+        builder.HasIndex(c => c.Name)
+    .IsUnique()
+    .HasFilter("[IsDeleted] = 0");
+
+        builder.Property(c => c.Name)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        builder.HasMany(c => c.Courses)
+            .WithOne(c => c.Category)
+            .HasForeignKey(c => c.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Navigation(c => c.Courses)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);   // 👈 السطر الجديد
+    }
+}
