@@ -13,22 +13,26 @@ namespace Learniverse.Application.Features.Sections.Command.DeleteSection
     {
         private readonly ICourseRepository _courseRepository;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ICourseAuthorizationService _courseAuthorizationService;
         private readonly IUnitOfWork _unitOfWork;
 
         public DeleteSectionCommandHandler(
              ICourseRepository courseRepository,
              ICurrentUserService currentUserService,
-             IUnitOfWork unitOfWork)
+             IUnitOfWork unitOfWork,
+             ICourseAuthorizationService courseAuthorizationService)
         {
             _courseRepository = courseRepository;
             _currentUserService = currentUserService;
             _unitOfWork = unitOfWork;
+            _courseAuthorizationService = courseAuthorizationService;
         }
         public async Task Handle(DeleteSectionCommand request, CancellationToken cancellationToken)
         {
             var course = await _courseRepository.GetByIdWithSectionsAsync(request.CourseId, cancellationToken);
             if (course is null)
                 throw new NotFoundException(nameof(Course), request.CourseId);
+            _courseAuthorizationService.EnsureCanModify(course);
             var deletedBy = _currentUserService.UserId;
 
             course.DeleteSection(

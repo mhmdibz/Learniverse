@@ -14,13 +14,16 @@ public sealed class CreateSectionCommandHandler :
 {
     private readonly ICourseRepository _courseRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseAuthorizationService _courseAuthorizationService;
 
     public CreateSectionCommandHandler(
       ICourseRepository courseRepository,
-      IUnitOfWork unitOfWork)
+      IUnitOfWork unitOfWork,
+      ICourseAuthorizationService courseAuthorizationService)
     {
         _courseRepository = courseRepository;
         _unitOfWork = unitOfWork;
+        _courseAuthorizationService = courseAuthorizationService;
     }
 
     public async Task<Guid> Handle(CreateSectionCommand request, CancellationToken cancellationToken)
@@ -32,6 +35,7 @@ public sealed class CreateSectionCommandHandler :
             throw new NotFoundException(
                 nameof(Course),
                 request.CourseId);
+        _courseAuthorizationService.EnsureCanModify(course);
 
         var section = course.AddSection(
            request.Title,

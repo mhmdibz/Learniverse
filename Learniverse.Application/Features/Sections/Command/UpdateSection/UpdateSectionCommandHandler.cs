@@ -13,10 +13,12 @@ namespace Learniverse.Application.Features.Sections.Command.UpdateSection
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICourseRepository _courseRepository;
-        public UpdateSectionCommandHandler(ICourseRepository courseRepository, IUnitOfWork unitOfWork)
+        private readonly ICourseAuthorizationService _courseAuthorizationService;
+        public UpdateSectionCommandHandler(ICourseRepository courseRepository, IUnitOfWork unitOfWork, ICourseAuthorizationService courseAuthorizationService)
         {
             _courseRepository = courseRepository;
             _unitOfWork = unitOfWork;
+            _courseAuthorizationService = courseAuthorizationService;
         }
         public async Task Handle(
       UpdateSectionCommand request,
@@ -38,7 +40,7 @@ namespace Learniverse.Application.Features.Sections.Command.UpdateSection
                 throw new NotFoundException(
                     nameof(Section),
                     request.SectionId);
-
+            _courseAuthorizationService.EnsureCanModify(course);
             section.UpdateDetails(
                 request.Title,
                 request.Description);

@@ -6,6 +6,7 @@ using Learniverse.Application.Features.Lessons.Commands.UpdateLesson;
 using Learniverse.Application.Features.Sections.Queries.GetAllSections;
 using Learniverse.Application.Features.Sections.Queries.GetSectionById;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Learniverse.API.Controllers;
@@ -46,6 +47,7 @@ public class SectionsController : ControllerBase
     }
 
     [HttpPost("{sectionId:guid}/lessons")]
+    [Authorize(Roles = "Instructor,Admin")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
@@ -70,6 +72,7 @@ public class SectionsController : ControllerBase
     value: lessonId);
     }
     [HttpPut("{sectionId:guid}/lessons/{lessonId:guid}")]
+    [Authorize(Roles = "Instructor,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
@@ -95,6 +98,7 @@ public class SectionsController : ControllerBase
         return NoContent();
     }
     [HttpDelete("{sectionId:guid}/lessons/{lessonId:guid}")]
+    [Authorize(Roles = "Instructor,Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]

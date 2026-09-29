@@ -3,6 +3,7 @@ using Learniverse.Application.Features.Categories.Commands.CreateCategory;
 using Learniverse.Application.Features.Categories.Queries.GetAllCategories;
 using Learniverse.Application.Features.Categories.Queries.GetCategoryById;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Learniverse.API.Controllers;
@@ -27,6 +28,7 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
