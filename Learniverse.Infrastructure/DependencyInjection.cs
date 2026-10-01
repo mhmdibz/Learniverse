@@ -25,7 +25,9 @@ public static class DependencyInjection
         services.AddOptions<JwtOptions>()
             .BindConfiguration(JwtOptions.SectionName)
             .ValidateOnStart();
-
+        services.AddOptions<BootstrapAdminOptions>()
+    .BindConfiguration(BootstrapAdminOptions.SectionName)
+    .ValidateOnStart();
         services.AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -60,7 +62,9 @@ public static class DependencyInjection
         services.AddSingleton<
             IValidateOptions<JwtOptions>,
             JwtOptionsValidator>();
-
+        services.AddSingleton<
+        IValidateOptions<BootstrapAdminOptions>,
+        BootstrapAdminOptionsValidator>();
         return services;
     }
 }

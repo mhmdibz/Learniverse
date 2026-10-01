@@ -11,13 +11,19 @@ public sealed class UpdateLessonCommandHandler
 {
     private readonly ISectionRepository _sectionRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICourseRepository _courseRepository;
+    private readonly ICourseAuthorizationService _courseAuthorizationService;
 
     public UpdateLessonCommandHandler(
         ISectionRepository sectionRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICourseAuthorizationService courseAuthorizationService,
+        ICourseRepository courseRepository)
     {
         _sectionRepository = sectionRepository;
         _unitOfWork = unitOfWork;
+        _courseAuthorizationService = courseAuthorizationService;
+        _courseRepository = courseRepository;
     }
 
     public async Task Handle(
@@ -32,7 +38,10 @@ public sealed class UpdateLessonCommandHandler
             throw new NotFoundException(
                 nameof(Section),
                 request.SectionId);
-
+        var course = await _courseRepository.GetByIdAsync(section.CourseId, cancellationToken);
+        if (course is null)
+            throw new NotFoundException(nameof(Course), section.CourseId);
+        _courseAuthorizationService.EnsureCanModify(course);
         var lesson = section.Lessons
             .FirstOrDefault(l => l.Id == request.LessonId);
 
