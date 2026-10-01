@@ -26,8 +26,7 @@ public static class DependencyInjection
             .BindConfiguration(JwtOptions.SectionName)
             .ValidateOnStart();
         services.AddOptions<BootstrapAdminOptions>()
-    .BindConfiguration(BootstrapAdminOptions.SectionName)
-    .ValidateOnStart();
+    .BindConfiguration(BootstrapAdminOptions.SectionName);
         services.AddAuthentication(
         JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

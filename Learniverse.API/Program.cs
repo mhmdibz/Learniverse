@@ -3,13 +3,16 @@ using Learniverse.API.Contracts.Requests.Identity;
 using Learniverse.API.Contracts.Responses;
 using Learniverse.API.Middlewares;
 using Learniverse.Application;
+using Learniverse.Application.Interfaces.Common;
 using Learniverse.Infrastructure;
+using Learniverse.Infrastructure.Authentication;
 using Learniverse.Persistence;
 using Learniverse.Persistence.Context;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 namespace Learniverse.API
 {
     public class Program
@@ -59,12 +62,29 @@ namespace Learniverse.API
                 var context = scope.ServiceProvider
                     .GetRequiredService<AppDbContext>();
 
-                await context.Database.MigrateAsync();
+                await context.Database.MigrateAsync(
+                    app.Lifetime.ApplicationStopping);
 
                 var roleManager = scope.ServiceProvider
                     .GetRequiredService<RoleManager<IdentityRole>>();
 
-                await IdentitySeeder.SeedRolesAsync(roleManager);
+                await IdentitySeeder.SeedRolesAsync(
+                    roleManager);
+
+                var userManager = scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+                var bootstrapAdminOptions = scope.ServiceProvider
+                    .GetRequiredService<IOptions<BootstrapAdminOptions>>();
+
+                var unitOfWork = scope.ServiceProvider
+                    .GetRequiredService<IUnitOfWork>();
+
+                await BootstrapAdminSeeder.SeedAsync(
+                    userManager,
+                    bootstrapAdminOptions,
+                    unitOfWork,
+                    app.Lifetime.ApplicationStopping);
             }
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
