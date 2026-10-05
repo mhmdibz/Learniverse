@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Common.DTOs;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
+using Learniverse.Domain.Enums;
 using Learniverse.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +21,9 @@ public class SectionRepository : ISectionRepository
         CancellationToken cancellationToken)
     {
         return await _context.Sections
+            .Where(s => _context.Courses.Any(c =>
+            c.Id == s.CourseId &&
+            c.Status == CourseStatus.Published))
             .FirstOrDefaultAsync(
                 s => s.Id == id,
                 cancellationToken);
@@ -29,6 +33,8 @@ public class SectionRepository : ISectionRepository
     {
         return await _context.Sections
             .AsNoTracking()
+            .Where(s => _context.Courses.Any(c =>
+            c.Id == s.CourseId && c.Status == CourseStatus.Published))
             .OrderBy(s => s.CourseId)
             .ThenBy(s => s.Order)
             .Select(s => new SectionListDto(
@@ -41,7 +47,11 @@ public class SectionRepository : ISectionRepository
     }
     public async Task<IReadOnlyList<SectionListDto>> GetByCourseIdAsync(Guid courseId, CancellationToken cancellationToken)
     {
-        return await _context.Sections.AsNoTracking().Where(s => s.CourseId == courseId).OrderBy(s => s.Order).Select(s => new SectionListDto(s.Id,
+        return await _context.Sections.AsNoTracking().Where(s => s.CourseId == courseId)
+            .Where(s => _context.Courses.Any(c =>
+            c.Id == s.CourseId &&
+            c.Status == CourseStatus.Published))
+            .OrderBy(s => s.Order).Select(s => new SectionListDto(s.Id,
             s.Title,
             s.Description,
             s.Order,

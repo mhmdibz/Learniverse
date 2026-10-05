@@ -1,12 +1,13 @@
 ﻿using FluentValidation;
 using Learniverse.API.Contracts.Requests.Identity;
+using Learniverse.API.Contracts.Responses.Identity;
+using Learniverse.Application.Features.Identity.Commands.Login;
 using Learniverse.Application.Features.Identity.Commands.Register;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ApplicationValidationException =
     Learniverse.Application.Exceptions.ValidationException;
-using Learniverse.API.Contracts.Responses.Identity;
-using Learniverse.Application.Features.Identity.Commands.Login;
 namespace Learniverse.API.Controllers;
 
 [ApiController]
@@ -29,6 +30,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("register")]
     public async Task<IActionResult> Register(
     RegisterRequest request,
     CancellationToken cancellationToken)
@@ -56,6 +58,7 @@ public class AuthController : ControllerBase
             new RegisterResponse(userId));
     }
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login(
     LoginRequest request,
     CancellationToken cancellationToken)

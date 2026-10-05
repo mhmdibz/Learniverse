@@ -12,11 +12,13 @@ public sealed class RegisterCommandValidator
             .MaximumLength(200);
 
         RuleFor(x => x.UserName)
-    .NotEmpty()
-    .MinimumLength(3)
-    .MaximumLength(50)
-    .Must(x => !x.Any(char.IsWhiteSpace))
-    .WithMessage("Username cannot contain spaces.");
+            .NotEmpty()
+            .MinimumLength(3)
+            .MaximumLength(50)
+            .Must(x => !x.Any(char.IsWhiteSpace))
+            .WithMessage("Username cannot contain spaces.")
+            .Must(x => !x.Contains('@'))
+            .WithMessage("Username cannot contain '@'.");
 
         RuleFor(x => x.Email)
             .NotEmpty()

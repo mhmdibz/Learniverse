@@ -11,13 +11,15 @@ using Learniverse.Persistence.Context;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Globalization;
+using System.Threading.RateLimiting;
 using Microsoft.Extensions.Options;
 namespace Learniverse.API
 {
     public class Program
     {
-        public static async Task  Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
             // Add services to the container.
@@ -55,15 +57,61 @@ namespace Learniverse.API
             builder.Services.AddApplication();
             builder.Services.AddPersistence(builder.Configuration);
             builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    var response = context.HttpContext.Response;
+
+                    if (context.Lease.TryGetMetadata(
+                            MetadataName.RetryAfter,
+                            out var retryAfter))
+                    {
+                        response.Headers.RetryAfter =
+                            Math.Ceiling(retryAfter.TotalSeconds)
+                                .ToString(CultureInfo.InvariantCulture);
+                    }
+
+                    response.ContentType = "application/json";
+                    await response.WriteAsync(
+                        "{\"message\":\"Too many requests. Try again later.\"}",
+                        cancellationToken);
+                };
+
+                options.AddPolicy("login", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 5,
+                            Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+
+                options.AddPolicy("register", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 5,
+                            Window = TimeSpan.FromMinutes(10),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+            });
             var app = builder.Build();
             using (var scope = app.Services.CreateScope())
             {
                 var context = scope.ServiceProvider
                     .GetRequiredService<AppDbContext>();
 
-                await context.Database.MigrateAsync(
-                    app.Lifetime.ApplicationStopping);
+                //await context.Database.MigrateAsync(
+                //    app.Lifetime.ApplicationStopping);
 
                 var roleManager = scope.ServiceProvider
                     .GetRequiredService<RoleManager<IdentityRole>>();
@@ -98,6 +146,10 @@ namespace Learniverse.API
             }
 
             app.UseHttpsRedirection();
+
+            app.UseRouting();
+            app.UseRateLimiter();
+
             app.UseAuthentication();
             app.UseAuthorization();
 

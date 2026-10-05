@@ -48,6 +48,8 @@ using System.Text;
                 throw new DomainException("Section not found.");
 
             section.Delete(deletedBy);
+            foreach (var lesson in section.Lessons)
+                lesson.Delete(deletedBy);
         }
         public void DeleteWithSections(string deletedBy)
         {

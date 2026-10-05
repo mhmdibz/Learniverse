@@ -26,7 +26,7 @@ namespace Learniverse.Application.Features.Courses.Commands.UpdateCourse
         }
         public async Task Handle(UpdateCourseCommand request, CancellationToken cancellationToken)
         {
-            var course = await _courseRepository.GetByIdAsync(request.Id, cancellationToken);
+            var course = await _courseRepository.GetByIdWithSectionsAsync(request.Id, cancellationToken);
             if (course is null)
             {
                 throw new NotFoundException(

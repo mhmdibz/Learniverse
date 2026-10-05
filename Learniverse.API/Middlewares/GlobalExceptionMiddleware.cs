@@ -38,14 +38,16 @@ public sealed class GlobalExceptionMiddleware
     {
         var (statusCode, response) = exception switch
         {
-            AuthenticationFailedException authenticationFailedEx => (
-                HttpStatusCode.Unauthorized,
-                new ErrorResponse
-                {
-                    StatusCode = (int)HttpStatusCode.Unauthorized,
-                    Message = authenticationFailedEx.Message,
-                    Errors = null
-                }),
+            AuthenticationFailedException
+     or AccountLockedException
+     or AccountNotAllowedException => (
+         HttpStatusCode.Unauthorized,
+         new ErrorResponse
+         {
+             StatusCode = (int)HttpStatusCode.Unauthorized,
+             Message = "Invalid identifier or password.",
+             Errors = null
+         }),
             UnauthorizedException unauthorizedEx => (
                    HttpStatusCode.Unauthorized,
                    new ErrorResponse
@@ -54,23 +56,7 @@ public sealed class GlobalExceptionMiddleware
                        Message = unauthorizedEx.Message,
                        Errors = null
                    }),
-            AccountLockedException accountLockedEx => (
-                  HttpStatusCode.Locked,
-                  new ErrorResponse
-                  {
-                      StatusCode = (int)HttpStatusCode.Locked,
-                      Message = accountLockedEx.Message,
-                      Errors = null
-                  }),
 
-            AccountNotAllowedException accountNotAllowedEx => (
-                HttpStatusCode.Forbidden,
-                new ErrorResponse
-                {
-                    StatusCode = (int)HttpStatusCode.Forbidden,
-                    Message = accountNotAllowedEx.Message,
-                    Errors = null
-                }),
 
             ValidationException validationEx => (
                 HttpStatusCode.BadRequest,

@@ -19,7 +19,7 @@ namespace Learniverse.Application.Features.Courses.Queries.GetCourseById
         }
         public async Task<GetCourseByIdResponse> Handle(GetCourseByIdQuery request, CancellationToken cancellationToken)
         {
-            var course = await _courseRepository.GetByIdAsync(request.Id, cancellationToken);
+            var course = await _courseRepository.GetPublishedByIdAsync(request.Id, cancellationToken);
             if (course is null)
             {
                 throw new NotFoundException(nameof(Course), request.Id);

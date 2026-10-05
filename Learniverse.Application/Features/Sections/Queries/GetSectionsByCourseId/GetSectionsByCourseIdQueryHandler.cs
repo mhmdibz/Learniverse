@@ -23,8 +23,11 @@ namespace Learniverse.Application.Features.Sections.Queries.GetSectionsByCourseI
 
         public async Task<IReadOnlyList<GetSectionsByCourseIdResponse>> Handle(GetSectionsByCourseIdQuery request, CancellationToken cancellationToken)
         {
-            var courseExists = await _courseRepository.ExistsAsync(request.CourseId, cancellationToken);
-            if (!courseExists)
+            var course = await _courseRepository.GetPublishedByIdAsync(
+      request.CourseId,
+      cancellationToken);
+
+            if (course is null)
                 throw new NotFoundException(
                     nameof(Course),
                     request.CourseId);

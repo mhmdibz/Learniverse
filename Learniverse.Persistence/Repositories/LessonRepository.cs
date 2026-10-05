@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Common.DTOs;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
+using Learniverse.Domain.Enums;
 using Learniverse.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,25 +21,36 @@ public class LessonRepository : ILessonRepository
         CancellationToken cancellationToken)
     {
         return await _context.Lessons
-            .FirstOrDefaultAsync(
-                l => l.Id == id,
-                cancellationToken);
+     .Where(l => l.IsPreview &&
+         _context.Sections.Any(s =>
+             s.Id == l.SectionId &&
+             _context.Courses.Any(c =>
+                 c.Id == s.CourseId &&
+                 c.Status == CourseStatus.Published)))
+     .FirstOrDefaultAsync(
+         l => l.Id == id,
+         cancellationToken);
     }
     public async Task<IReadOnlyList<LessonListDto>> GetAllAsync(
     CancellationToken cancellationToken)
     {
         return await _context.Lessons
-            .AsNoTracking()
-            .OrderBy(l => l.SectionId)
-            .ThenBy(l => l.Order)
-            .Select(l => new LessonListDto(
-                l.Id,
-                l.Title,
-                l.Description,
-                l.Order,
-                l.ContentType,
-                l.SectionId,
-                l.IsPreview))
-            .ToListAsync(cancellationToken);
+           .AsNoTracking()
+           .Where(l => l.IsPreview &&
+              _context.Sections.Any(s =>
+                  s.Id == l.SectionId &&
+                  _context.Courses.Any(c =>
+                      c.Id == s.CourseId &&
+                      c.Status == CourseStatus.Published))).OrderBy(l => l.SectionId)
+                     .ThenBy(l => l.Order)
+          .Select(l => new LessonListDto(
+             l.Id,
+             l.Title,
+             l.Description,
+             l.Order,
+             l.ContentType,
+             l.SectionId,
+             l.IsPreview))
+         .ToListAsync(cancellationToken);
     }
 }

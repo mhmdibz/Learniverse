@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Common.DTOs;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
+using Learniverse.Domain.Enums;
 using Learniverse.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,12 +45,24 @@ public class CourseRepository : ICourseRepository
                 c => c.Id == id,
                 cancellationToken);
     }
+    public async Task<Course?> GetPublishedByIdAsync(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Courses
+            .Include(c => c.Category)
+            .Where(c => c.Status == CourseStatus.Published)
+            .FirstOrDefaultAsync(
+                c => c.Id == id,
+                cancellationToken);
+    }
 
     public async Task<IReadOnlyList<CourseListDto>> GetAllAsync(
         CancellationToken cancellationToken)
     {
         return await _context.Courses
             .AsNoTracking()
+            .Where(c => c.Status == CourseStatus.Published)
             .OrderBy(c => c.Title)
             .Select(c => new CourseListDto(
                 c.Id,
