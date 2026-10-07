@@ -12,6 +12,7 @@ using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -110,8 +111,7 @@ namespace Learniverse.API
                 var context = scope.ServiceProvider
                     .GetRequiredService<AppDbContext>();
 
-                //await context.Database.MigrateAsync(
-                //    app.Lifetime.ApplicationStopping);
+                await context.Database.MigrateAsync(app.Lifetime.ApplicationStopping);
 
                 var roleManager = scope.ServiceProvider
                     .GetRequiredService<RoleManager<IdentityRole>>();
