@@ -1,34 +1,52 @@
-﻿using Learniverse.Application.Interfaces.Repositories;
+﻿using Learniverse.Application.Common.Constants;
+using Learniverse.Application.Interfaces.Common;
+using Learniverse.Application.Interfaces.Repositories;
 using MediatR;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Learniverse.Application.Features.Lessons.Queries.GetAllLessons
+namespace Learniverse.Application.Features.Lessons.Queries.GetAllLessons;
+
+public sealed class GetAllLessonsQueryHandler
+    : IRequestHandler<
+        GetAllLessonsQuery,
+        IReadOnlyList<GetAllLessonsResponse>>
 {
-    public sealed class GetAllLessonsQueryHandler:IRequestHandler<GetAllLessonsQuery,IReadOnlyList<GetAllLessonsResponse>>
+    private readonly ILessonRepository _lessonRepository;
+    private readonly ICurrentUserService _currentUserService;
+
+    public GetAllLessonsQueryHandler(
+        ILessonRepository lessonRepository,
+        ICurrentUserService currentUserService)
     {
-        private readonly ILessonRepository _lessonRepository;
-        public GetAllLessonsQueryHandler(ILessonRepository lessonRepository) { 
         _lessonRepository = lessonRepository;
-        }
-        public async Task<IReadOnlyList<GetAllLessonsResponse>> Handle(
+        _currentUserService = currentUserService;
+    }
+
+    public async Task<IReadOnlyList<GetAllLessonsResponse>> Handle(
         GetAllLessonsQuery request,
         CancellationToken cancellationToken)
-        {
-            var lessons = await _lessonRepository.GetAllAsync(
-                cancellationToken);
+    {
+        var roles = _currentUserService.Roles;
 
-            return lessons
-                .Select(l => new GetAllLessonsResponse(
-                    l.Id,
-                    l.Title,
-                    l.Description,
-                    l.Order,
-                    l.ContentType,
-                    l.SectionId,
-                    l.IsPreview))
-                .ToList();
-        }
+        var isAdmin = roles.Contains(Roles.Admin);
+
+        var instructorId = roles.Contains(Roles.Instructor)
+            ? _currentUserService.UserIdOrNull
+            : null;
+
+        var lessons = await _lessonRepository.GetAllAsync(
+            isAdmin,
+            instructorId,
+            cancellationToken);
+
+        return lessons
+            .Select(l => new GetAllLessonsResponse(
+                l.Id,
+                l.Title,
+                l.Description,
+                l.Order,
+                l.ContentType,
+                l.SectionId,
+                l.IsPreview))
+            .ToList();
     }
 }

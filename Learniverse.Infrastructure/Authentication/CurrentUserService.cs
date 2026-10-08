@@ -29,4 +29,14 @@ public sealed class CurrentUserService : ICurrentUserService
         .Select(claim => claim.Value)
         .ToArray()
     ?? Array.Empty<string>();
+    public bool IsAuthenticated =>
+    _httpContextAccessor.HttpContext?
+        .User.Identity?.IsAuthenticated == true;
+
+    public string? UserIdOrNull =>
+        IsAuthenticated
+            ? _httpContextAccessor.HttpContext?
+                .User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            : null;
+
 }

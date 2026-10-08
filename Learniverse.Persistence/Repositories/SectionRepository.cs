@@ -29,12 +29,19 @@ public class SectionRepository : ISectionRepository
                 cancellationToken);
     }
     public async Task<IReadOnlyList<SectionListDto>> GetAllAsync(
+    bool isAdmin,
+    string? instructorId,
     CancellationToken cancellationToken)
     {
         return await _context.Sections
             .AsNoTracking()
-            .Where(s => _context.Courses.Any(c =>
-            c.Id == s.CourseId && c.Status == CourseStatus.Published))
+            .Where(s =>
+                isAdmin ||
+                _context.Courses.Any(c =>
+                    c.Id == s.CourseId &&
+                    (c.Status == CourseStatus.Published ||
+                     (instructorId != null &&
+                      c.InstructorId == instructorId))))
             .OrderBy(s => s.CourseId)
             .ThenBy(s => s.Order)
             .Select(s => new SectionListDto(
@@ -64,6 +71,32 @@ public class SectionRepository : ISectionRepository
     {
         return await _context.Sections
             .Include(s => s.Lessons)
+            .FirstOrDefaultAsync(
+                s => s.Id == id,
+                cancellationToken);
+    }
+    public async Task<IReadOnlyList<SectionListDto>>
+    GetByCourseIdIncludingUnpublishedAsync(
+        Guid courseId,
+        CancellationToken cancellationToken)
+    {
+        return await _context.Sections
+            .AsNoTracking()
+            .Where(s => s.CourseId == courseId)
+            .OrderBy(s => s.Order)
+            .Select(s => new SectionListDto(
+                s.Id,
+                s.Title,
+                s.Description,
+                s.Order,
+                s.CourseId))
+            .ToListAsync(cancellationToken);
+    }
+    public async Task<Section?> GetByIdIncludingUnpublishedAsync(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Sections
             .FirstOrDefaultAsync(
                 s => s.Id == id,
                 cancellationToken);
