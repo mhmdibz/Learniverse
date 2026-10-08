@@ -74,4 +74,16 @@ public class LessonRepository : ILessonRepository
                 l.IsPreview))
             .ToListAsync(cancellationToken);
     }
+    public async Task<Lesson?> GetByIdForCourseAsync(
+    Guid courseId,
+    Guid lessonId,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Lessons.FirstOrDefaultAsync(
+            l => l.Id == lessonId &&
+                 _context.Sections.Any(s =>
+                     s.Id == l.SectionId &&
+                     s.CourseId == courseId),
+            cancellationToken);
+    }
 }

@@ -13,4 +13,8 @@ public interface ILessonRepository
     Task<IReadOnlyList<LessonListDto>> GetAllByCourseIdAsync(
     Guid courseId,
     CancellationToken cancellationToken);
+    Task<Lesson?> GetByIdForCourseAsync(
+    Guid courseId,
+    Guid lessonId,
+    CancellationToken cancellationToken);
 }

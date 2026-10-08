@@ -7,6 +7,8 @@ using Learniverse.Application.Features.Courses.Commands.UpdateCourse;
 using Learniverse.Application.Features.Courses.Queries.GetAllCourses;
 using Learniverse.Application.Features.Courses.Queries.GetCourseById;
 using Learniverse.Application.Features.Lessons.Queries.GetAllLessons;
+using Learniverse.Application.Features.Lessons.Queries.GetLessonById;
+using Learniverse.Application.Features.Lessons.Queries.GetLessonForCourse;
 using Learniverse.Application.Features.Lessons.Queries.GetLessonsForCourse;
 using Learniverse.Application.Features.Sections.Command.CreateSection;
 using Learniverse.Application.Features.Sections.Command.DeleteSection;
@@ -162,6 +164,23 @@ namespace Learniverse.API.Controllers
             var response = await _mediator.Send(
                 new GetLessonsForCourseQuery(courseId),
                 cancellationToken);
+            return Ok(response);
+        }
+        [HttpGet("{courseId:guid}/lessons/{lessonId:guid}")]
+        [Authorize]
+        [ProducesResponseType(
+        typeof(GetLessonForCourseResponse),
+        StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetLessonForCourse(
+        Guid courseId,
+        Guid lessonId,
+        CancellationToken cancellationToken)
+        {
+            var response = await _mediator.Send(
+                new GetLessonForCourseQuery(courseId, lessonId),
+                cancellationToken);
+
             return Ok(response);
         }
     }
