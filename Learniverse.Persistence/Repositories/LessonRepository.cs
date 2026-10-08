@@ -32,26 +32,37 @@ public class LessonRepository : ILessonRepository
          cancellationToken);
     }
     public async Task<IReadOnlyList<LessonListDto>> GetAllAsync(
+    bool isAdmin,
+    string? instructorId,
     CancellationToken cancellationToken)
     {
         return await _context.Lessons
-           .AsNoTracking()
-           .Where(l => l.IsPreview &&
-              _context.Sections.Any(s =>
-                  s.Id == l.SectionId &&
-                  _context.Courses.Any(c =>
-                      c.Id == s.CourseId &&
-                      c.Status == CourseStatus.Published))).OrderBy(l => l.SectionId)
-                     .ThenBy(l => l.Order)
-          .Select(l => new LessonListDto(
-             l.Id,
-             l.Title,
-             l.Description,
-             l.Order,
-             l.ContentType,
-             l.SectionId,
-             l.IsPreview))
-         .ToListAsync(cancellationToken);
+            .AsNoTracking()
+            .Where(l =>
+                isAdmin ||
+                (instructorId != null &&
+                 _context.Sections.Any(s =>
+                     s.Id == l.SectionId &&
+                     _context.Courses.Any(c =>
+                         c.Id == s.CourseId &&
+                         c.InstructorId == instructorId))) ||
+                (l.IsPreview &&
+                 _context.Sections.Any(s =>
+                     s.Id == l.SectionId &&
+                     _context.Courses.Any(c =>
+                         c.Id == s.CourseId &&
+                         c.Status == CourseStatus.Published))))
+            .OrderBy(l => l.SectionId)
+            .ThenBy(l => l.Order)
+            .Select(l => new LessonListDto(
+                l.Id,
+                l.Title,
+                l.Description,
+                l.Order,
+                l.ContentType,
+                l.SectionId,
+                l.IsPreview))
+            .ToListAsync(cancellationToken);
     }
     public async Task<IReadOnlyList<LessonListDto>> GetAllByCourseIdAsync(
     Guid courseId,
@@ -85,5 +96,14 @@ public class LessonRepository : ILessonRepository
                      s.Id == l.SectionId &&
                      s.CourseId == courseId),
             cancellationToken);
+    }
+    public async Task<Lesson?> GetByIdIncludingUnpublishedAsync(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        return await _context.Lessons
+            .FirstOrDefaultAsync(
+                l => l.Id == id,
+                cancellationToken);
     }
 }

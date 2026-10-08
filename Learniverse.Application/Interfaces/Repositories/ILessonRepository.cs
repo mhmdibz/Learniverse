@@ -9,12 +9,17 @@ public interface ILessonRepository
         Guid id,
         CancellationToken cancellationToken);
     Task<IReadOnlyList<LessonListDto>> GetAllAsync(
-        CancellationToken cancellationToken);
+    bool isAdmin,
+    string? instructorId,
+    CancellationToken cancellationToken);
     Task<IReadOnlyList<LessonListDto>> GetAllByCourseIdAsync(
     Guid courseId,
     CancellationToken cancellationToken);
     Task<Lesson?> GetByIdForCourseAsync(
     Guid courseId,
     Guid lessonId,
+    CancellationToken cancellationToken);
+    Task<Lesson?> GetByIdIncludingUnpublishedAsync(
+    Guid id,
     CancellationToken cancellationToken);
 }

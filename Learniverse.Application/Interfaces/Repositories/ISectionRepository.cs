@@ -13,11 +13,19 @@ public interface ISectionRepository
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<SectionListDto>> GetAllAsync(
-        CancellationToken cancellationToken);
+    bool isAdmin,
+    string? instructorId,
+    CancellationToken cancellationToken);
     Task<IReadOnlyList<SectionListDto>> GetByCourseIdAsync(
         Guid courseId,
         CancellationToken cancellationToken);
     Task<Section?> GetByIdWithLessonsAsync(
+    Guid id,
+    CancellationToken cancellationToken);
+    Task<IReadOnlyList<SectionListDto>> GetByCourseIdIncludingUnpublishedAsync(
+    Guid courseId,
+    CancellationToken cancellationToken);
+    Task<Section?> GetByIdIncludingUnpublishedAsync(
     Guid id,
     CancellationToken cancellationToken);
 }

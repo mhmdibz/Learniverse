@@ -58,11 +58,16 @@ public class CourseRepository : ICourseRepository
     }
 
     public async Task<IReadOnlyList<CourseListDto>> GetAllAsync(
-        CancellationToken cancellationToken)
+    bool isAdmin,
+    string? instructorId,
+    CancellationToken cancellationToken)
     {
         return await _context.Courses
             .AsNoTracking()
-            .Where(c => c.Status == CourseStatus.Published)
+            .Where(c =>
+                isAdmin ||
+                c.Status == CourseStatus.Published ||
+                (instructorId != null && c.InstructorId == instructorId))
             .OrderBy(c => c.Title)
             .Select(c => new CourseListDto(
                 c.Id,
