@@ -20,6 +20,7 @@ public class AppDbContext
     public DbSet<Section> Sections => Set<Section>();
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Enrollment> Enrollments => Set<Enrollment>();
 
     public override async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)

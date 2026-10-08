@@ -1,21 +1,25 @@
 ﻿using FluentValidation;
+using Learniverse.API.Contracts.Requests;
 using Learniverse.API.Contracts.Responses;
 using Learniverse.Application.Features.Courses.Commands.CreateCourse;
 using Learniverse.Application.Features.Courses.Commands.DeleteCourse;
 using Learniverse.Application.Features.Courses.Commands.UpdateCourse;
 using Learniverse.Application.Features.Courses.Queries.GetAllCourses;
 using Learniverse.Application.Features.Courses.Queries.GetCourseById;
+using Learniverse.Application.Features.Lessons.Queries.GetAllLessons;
+using Learniverse.Application.Features.Lessons.Queries.GetLessonById;
+using Learniverse.Application.Features.Lessons.Queries.GetLessonForCourse;
+using Learniverse.Application.Features.Lessons.Queries.GetLessonsForCourse;
 using Learniverse.Application.Features.Sections.Command.CreateSection;
-using Learniverse.Domain.Entities;
+using Learniverse.Application.Features.Sections.Command.DeleteSection;
+using Learniverse.Application.Features.Sections.Command.UpdateSection;
+using Learniverse.Application.Features.Sections.Queries.GetSectionById;
 using Learniverse.Application.Features.Sections.Queries.GetSectionsByCourseId;
+using Learniverse.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
-using Learniverse.API.Contracts.Requests;
-using Learniverse.Application.Features.Sections.Command.UpdateSection;
-using Learniverse.Application.Features.Sections.Command.DeleteSection;
-using Learniverse.Application.Features.Sections.Queries.GetSectionById;
-using Microsoft.AspNetCore.Authorization;
 namespace Learniverse.API.Controllers
 {
     [ApiController]
@@ -146,6 +150,37 @@ namespace Learniverse.API.Controllers
         {
             var query = new GetSectionsByCourseIdQuery(courseId);
             var response = await _mediator.Send(query, cancellationToken);
+            return Ok(response);
+        }
+        [HttpGet("{courseId:guid}/lessons")]
+        [Authorize]
+        [ProducesResponseType(
+        typeof(IReadOnlyList<GetLessonsForCourseResponse>),
+        StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLessons(
+        Guid courseId,
+        CancellationToken cancellationToken)
+        {
+            var response = await _mediator.Send(
+                new GetLessonsForCourseQuery(courseId),
+                cancellationToken);
+            return Ok(response);
+        }
+        [HttpGet("{courseId:guid}/lessons/{lessonId:guid}")]
+        [Authorize]
+        [ProducesResponseType(
+        typeof(GetLessonForCourseResponse),
+        StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetLessonForCourse(
+        Guid courseId,
+        Guid lessonId,
+        CancellationToken cancellationToken)
+        {
+            var response = await _mediator.Send(
+                new GetLessonForCourseQuery(courseId, lessonId),
+                cancellationToken);
+
             return Ok(response);
         }
     }
