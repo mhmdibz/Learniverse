@@ -1,5 +1,4 @@
-﻿using Learniverse.Application.Common.Constants;
-using Learniverse.Application.Exceptions;
+﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
@@ -12,15 +11,18 @@ public sealed class CourseContentAccessService
 {
     private readonly ICourseRepository _courseRepository;
     private readonly IEnrollmentRepository _enrollmentRepository;
+    private readonly ICourseVisibilityPolicy _courseVisibilityPolicy;
     private readonly ICurrentUserService _currentUserService;
 
     public CourseContentAccessService(
         ICourseRepository courseRepository,
         IEnrollmentRepository enrollmentRepository,
+        ICourseVisibilityPolicy courseVisibilityPolicy,
         ICurrentUserService currentUserService)
     {
         _courseRepository = courseRepository;
         _enrollmentRepository = enrollmentRepository;
+        _courseVisibilityPolicy = courseVisibilityPolicy;
         _currentUserService = currentUserService;
     }
 
@@ -33,28 +35,28 @@ public sealed class CourseContentAccessService
             cancellationToken);
 
         if (course is null)
+        {
             throw new NotFoundException(nameof(Course), courseId);
+        }
 
-        var userId = _currentUserService.UserId;
-        var roles = _currentUserService.Roles;
-
-        var isAdmin = roles.Contains(Roles.Admin);
-        var isCourseOwner = course.InstructorId == userId;
-
-         if (isAdmin || isCourseOwner)
+        if (_courseVisibilityPolicy.IsAdminOrOwner(course.InstructorId))
+        {
             return;
+        }
 
         var courseAllowsStudentAccess =
             course.Status is CourseStatus.Published or CourseStatus.Archived;
 
         var isEnrolled = courseAllowsStudentAccess &&
             await _enrollmentRepository.HasAccessAsync(
-                userId,
+                _currentUserService.UserId,
                 courseId,
                 cancellationToken);
 
         if (!isEnrolled)
+        {
             throw new ForbiddenException(
                 "You are not allowed to access this course content.");
+        }
     }
 }

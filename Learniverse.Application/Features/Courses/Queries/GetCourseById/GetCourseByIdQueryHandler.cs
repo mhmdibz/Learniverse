@@ -1,5 +1,4 @@
-﻿using Learniverse.Application.Common.Constants;
-using Learniverse.Application.Exceptions;
+﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Features.Courses.Queries.GetCourseById;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
@@ -13,14 +12,14 @@ public sealed class GetCourseByIdQueryHandler
     : IRequestHandler<GetCourseByIdQuery, GetCourseByIdResponse>
 {
     private readonly ICourseRepository _courseRepository;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly ICourseVisibilityPolicy _courseVisibilityPolicy;
 
     public GetCourseByIdQueryHandler(
         ICourseRepository courseRepository,
-        ICurrentUserService currentUserService)
+        ICourseVisibilityPolicy courseVisibilityPolicy)
     {
         _courseRepository = courseRepository;
-        _currentUserService = currentUserService;
+        _courseVisibilityPolicy = courseVisibilityPolicy;
     }
 
     public async Task<GetCourseByIdResponse> Handle(
@@ -28,26 +27,16 @@ public sealed class GetCourseByIdQueryHandler
         CancellationToken cancellationToken)
     {
         var course = await _courseRepository.GetByIdAsync(
-           request.Id,
-           cancellationToken);
+            request.Id,
+            cancellationToken);
 
         if (course is null)
         {
             throw new NotFoundException(nameof(Course), request.Id);
         }
 
-        var roles = _currentUserService.Roles;
-
-        var isAdmin = roles.Contains(Roles.Admin);
-
-        var isCourseOwner =
-            roles.Contains(Roles.Instructor) &&
-            _currentUserService.UserIdOrNull == course.InstructorId;
-
-
         if (course.Status != CourseStatus.Published &&
-            !isAdmin &&
-            !isCourseOwner)
+            !_courseVisibilityPolicy.IsAdminOrOwner(course.InstructorId))
         {
             throw new NotFoundException(nameof(Course), request.Id);
         }
