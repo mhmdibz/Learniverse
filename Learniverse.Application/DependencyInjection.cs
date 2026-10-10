@@ -24,7 +24,8 @@ public static class DependencyInjection
             typeof(IPipelineBehavior<,>),
             typeof(ValidationBehavior<,>));
         services.AddScoped<ICourseAuthorizationService, CourseAuthorizationService>();
-        services.AddScoped<ICourseContentAccessService,CourseContentAccessService>();
+        services.AddScoped<ICourseContentAccessService, CourseContentAccessService>();
+        services.AddScoped<ICourseVisibilityPolicy, CourseVisibilityPolicy>();
         return services;
     }
 }

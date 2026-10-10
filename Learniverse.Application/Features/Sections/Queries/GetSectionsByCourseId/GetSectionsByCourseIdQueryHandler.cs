@@ -1,5 +1,4 @@
-﻿using Learniverse.Application.Common.Constants;
-using Learniverse.Application.Exceptions;
+﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Features.Sections.Queries.GetSectionsByCourseId;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
@@ -16,23 +15,23 @@ public sealed class GetSectionsByCourseIdQueryHandler
 {
     private readonly ICourseRepository _courseRepository;
     private readonly ISectionRepository _sectionRepository;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly ICourseVisibilityPolicy _courseVisibilityPolicy;
 
     public GetSectionsByCourseIdQueryHandler(
         ICourseRepository courseRepository,
         ISectionRepository sectionRepository,
-        ICurrentUserService currentUserService)
+        ICourseVisibilityPolicy courseVisibilityPolicy)
     {
         _courseRepository = courseRepository;
         _sectionRepository = sectionRepository;
-        _currentUserService = currentUserService;
+        _courseVisibilityPolicy = courseVisibilityPolicy;
     }
 
     public async Task<IReadOnlyList<GetSectionsByCourseIdResponse>> Handle(
         GetSectionsByCourseIdQuery request,
         CancellationToken cancellationToken)
     {
-         var course = await _courseRepository.GetByIdAsync(
+        var course = await _courseRepository.GetByIdAsync(
             request.CourseId,
             cancellationToken);
 
@@ -43,36 +42,26 @@ public sealed class GetSectionsByCourseIdQueryHandler
                 request.CourseId);
         }
 
-        var roles = _currentUserService.Roles;
-
-        var isAdmin = roles.Contains(Roles.Admin);
-
-        var isCourseOwner =
-            roles.Contains(Roles.Instructor) &&
-            _currentUserService.UserIdOrNull == course.InstructorId;
-
-         if (course.Status != CourseStatus.Published &&
-            !isAdmin &&
-            !isCourseOwner)
+        if (course.Status != CourseStatus.Published &&
+            !_courseVisibilityPolicy.IsAdminOrOwner(course.InstructorId))
         {
             throw new NotFoundException(
                 nameof(Course),
                 request.CourseId);
         }
 
-        
         var sections =
             await _sectionRepository.GetByCourseIdIncludingUnpublishedAsync(
                 request.CourseId,
                 cancellationToken);
 
         return sections
-            .Select(s => new GetSectionsByCourseIdResponse(
-                s.Id,
-                s.Title,
-                s.Description,
-                s.Order,
-                s.CourseId))
+            .Select(section => new GetSectionsByCourseIdResponse(
+                section.Id,
+                section.Title,
+                section.Description,
+                section.Order,
+                section.CourseId))
             .ToList();
     }
 }

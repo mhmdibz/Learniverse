@@ -1,5 +1,4 @@
-﻿using Learniverse.Application.Common.Constants;
-using Learniverse.Application.Exceptions;
+﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Features.Lessons.Queries.GetLessonById;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
@@ -15,18 +14,18 @@ public sealed class GetLessonByIdQueryHandler
     private readonly ILessonRepository _lessonRepository;
     private readonly ISectionRepository _sectionRepository;
     private readonly ICourseRepository _courseRepository;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly ICourseVisibilityPolicy _courseVisibilityPolicy;
 
     public GetLessonByIdQueryHandler(
         ILessonRepository lessonRepository,
         ISectionRepository sectionRepository,
         ICourseRepository courseRepository,
-        ICurrentUserService currentUserService)
+        ICourseVisibilityPolicy courseVisibilityPolicy)
     {
         _lessonRepository = lessonRepository;
         _sectionRepository = sectionRepository;
         _courseRepository = courseRepository;
-        _currentUserService = currentUserService;
+        _courseVisibilityPolicy = courseVisibilityPolicy;
     }
 
     public async Task<GetLessonByIdResponse> Handle(
@@ -62,19 +61,12 @@ public sealed class GetLessonByIdQueryHandler
             throw new NotFoundException(nameof(Course), section.CourseId);
         }
 
-        var roles = _currentUserService.Roles;
-
-        var isAdmin = roles.Contains(Roles.Admin);
-
-        var isCourseOwner =
-            roles.Contains(Roles.Instructor) &&
-            _currentUserService.UserIdOrNull == course.InstructorId;
-
         var isPublicPreview =
             lesson.IsPreview &&
             course.Status == CourseStatus.Published;
 
-        if (!isAdmin && !isCourseOwner && !isPublicPreview)
+        if (!_courseVisibilityPolicy.IsAdminOrOwner(course.InstructorId) &&
+            !isPublicPreview)
         {
             throw new NotFoundException(nameof(Lesson), request.Id);
         }
