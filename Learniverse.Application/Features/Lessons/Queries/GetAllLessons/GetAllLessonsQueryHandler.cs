@@ -29,9 +29,7 @@ public sealed class GetAllLessonsQueryHandler
 
         var isAdmin = roles.Contains(Roles.Admin);
 
-        var instructorId = roles.Contains(Roles.Instructor)
-            ? _currentUserService.UserIdOrNull
-            : null;
+        var instructorId = _currentUserService.UserIdOrNull;
 
         var lessons = await _lessonRepository.GetAllAsync(
             isAdmin,

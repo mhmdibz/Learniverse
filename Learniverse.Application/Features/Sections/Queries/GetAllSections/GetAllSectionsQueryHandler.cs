@@ -29,9 +29,7 @@ public sealed class GetAllSectionsQueryHandler
 
         var isAdmin = roles.Contains(Roles.Admin);
 
-        var instructorId = roles.Contains(Roles.Instructor)
-            ? _currentUserService.UserIdOrNull
-            : null;
+        var instructorId = _currentUserService.UserIdOrNull;
 
         var sections = await _sectionRepository.GetAllAsync(
             isAdmin,

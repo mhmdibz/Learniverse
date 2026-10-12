@@ -28,10 +28,7 @@ public sealed class GetAllCoursesQueryHandler
         var roles = _currentUserService.Roles;
 
         var isAdmin = roles.Contains(Roles.Admin);
-
-        var instructorId = roles.Contains(Roles.Instructor)
-            ? _currentUserService.UserIdOrNull
-            : null;
+        var instructorId = _currentUserService.UserIdOrNull;
         var courses = await _courseRepository.GetAllAsync(
     isAdmin,
     instructorId,
