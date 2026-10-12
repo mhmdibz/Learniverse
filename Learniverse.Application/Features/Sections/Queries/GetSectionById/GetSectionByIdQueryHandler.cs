@@ -3,7 +3,6 @@ using Learniverse.Application.Features.Sections.Queries.GetSectionById;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
-using Learniverse.Domain.Enums;
 using MediatR;
 
 namespace Learniverse.Application.Features.Sections.Queries.GetSectionById;
@@ -13,16 +12,16 @@ public sealed class GetSectionByIdQueryHandler
 {
     private readonly ISectionRepository _sectionRepository;
     private readonly ICourseRepository _courseRepository;
-    private readonly ICourseVisibilityPolicy _courseVisibilityPolicy;
+    private readonly ICourseContentAccessService _courseContentAccessService;
 
     public GetSectionByIdQueryHandler(
         ISectionRepository sectionRepository,
         ICourseRepository courseRepository,
-        ICourseVisibilityPolicy courseVisibilityPolicy)
+        ICourseContentAccessService courseContentAccessService)
     {
         _sectionRepository = sectionRepository;
         _courseRepository = courseRepository;
-        _courseVisibilityPolicy = courseVisibilityPolicy;
+        _courseContentAccessService = courseContentAccessService;
     }
 
     public async Task<GetSectionByIdResponse> Handle(
@@ -43,13 +42,10 @@ public sealed class GetSectionByIdQueryHandler
             section.CourseId,
             cancellationToken);
 
-        if (course is null)
-        {
-            throw new NotFoundException(nameof(Course), section.CourseId);
-        }
-
-        if (course.Status != CourseStatus.Published &&
-            !_courseVisibilityPolicy.IsAdminOrOwner(course.InstructorId))
+        if (course is null ||
+            !await _courseContentAccessService.CanViewCourseAsync(
+                course,
+                cancellationToken))
         {
             throw new NotFoundException(nameof(Section), request.Id);
         }

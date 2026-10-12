@@ -17,7 +17,6 @@ public sealed class CourseVisibilityPolicy : ICourseVisibilityPolicy
         var roles = _currentUserService.Roles;
 
         return roles.Contains(Roles.Admin) ||
-            (roles.Contains(Roles.Instructor) &&
-             _currentUserService.UserIdOrNull == courseInstructorId);
+               _currentUserService.UserIdOrNull == courseInstructorId;
     }
 }

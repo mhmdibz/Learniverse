@@ -26,6 +26,30 @@ public sealed class CourseContentAccessService
         _currentUserService = currentUserService;
     }
 
+    public async Task<bool> CanViewCourseAsync(
+        Course course,
+        CancellationToken cancellationToken)
+    {
+        if (_courseVisibilityPolicy.IsAdminOrOwner(course.InstructorId))
+        {
+            return true;
+        }
+
+        if (course.Status == CourseStatus.Published)
+        {
+            return true;
+        }
+
+        if (course.Status != CourseStatus.Archived)
+        {
+            return false;
+        }
+
+        return await HasEnrollmentAccessAsync(
+            course.Id,
+            cancellationToken);
+    }
+
     public async Task EnsureCanReadAllLessonsAsync(
         Guid courseId,
         CancellationToken cancellationToken)
@@ -34,7 +58,8 @@ public sealed class CourseContentAccessService
             courseId,
             cancellationToken);
 
-        if (course is null)
+        if (course is null ||
+            !await CanViewCourseAsync(course, cancellationToken))
         {
             throw new NotFoundException(nameof(Course), courseId);
         }
@@ -44,19 +69,29 @@ public sealed class CourseContentAccessService
             return;
         }
 
-        var courseAllowsStudentAccess =
-            course.Status is CourseStatus.Published or CourseStatus.Archived;
-
-        var isEnrolled = courseAllowsStudentAccess &&
-            await _enrollmentRepository.HasAccessAsync(
-                _currentUserService.UserId,
-                courseId,
-                cancellationToken);
-
-        if (!isEnrolled)
+        if (await HasEnrollmentAccessAsync(courseId, cancellationToken))
         {
-            throw new ForbiddenException(
-                "You are not allowed to access this course content.");
+            return;
         }
+
+        throw new ForbiddenException(
+            "You are not allowed to access this course content.");
+    }
+
+    private async Task<bool> HasEnrollmentAccessAsync(
+        Guid courseId,
+        CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserIdOrNull;
+
+        if (userId is null)
+        {
+            return false;
+        }
+
+        return await _enrollmentRepository.HasAccessAsync(
+            userId,
+            courseId,
+            cancellationToken);
     }
 }
