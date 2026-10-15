@@ -1,4 +1,4 @@
-﻿using Learniverse.Application.Common.DTOs;
+using Learniverse.Application.Common.DTOs;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
 using Learniverse.Domain.Enums;
@@ -45,9 +45,10 @@ public class CourseRepository : ICourseRepository
                 c => c.Id == id,
                 cancellationToken);
     }
+
     public async Task<Course?> GetPublishedByIdAsync(
-    Guid id,
-    CancellationToken cancellationToken)
+        Guid id,
+        CancellationToken cancellationToken)
     {
         return await _context.Courses
             .Include(c => c.Category)
@@ -58,16 +59,23 @@ public class CourseRepository : ICourseRepository
     }
 
     public async Task<IReadOnlyList<CourseListDto>> GetAllAsync(
-    bool isAdmin,
-    string? instructorId,
-    CancellationToken cancellationToken)
+        bool isAdmin,
+        string? instructorId,
+        CancellationToken cancellationToken)
     {
         return await _context.Courses
             .AsNoTracking()
             .Where(c =>
                 isAdmin ||
                 c.Status == CourseStatus.Published ||
-                (instructorId != null && c.InstructorId == instructorId))
+                (instructorId != null && c.InstructorId == instructorId) ||
+                (instructorId != null &&
+                 c.Status == CourseStatus.Archived &&
+                 _context.Enrollments.Any(e =>
+                     e.CourseId == c.Id &&
+                     e.StudentId == instructorId &&
+                     (e.Status == EnrollmentStatus.Active ||
+                      e.Status == EnrollmentStatus.Completed))))
             .OrderBy(c => c.Title)
             .Select(c => new CourseListDto(
                 c.Id,
