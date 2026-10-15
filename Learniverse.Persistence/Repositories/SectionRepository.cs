@@ -49,7 +49,7 @@ public class SectionRepository : ISectionRepository
                           e.CourseId == c.Id &&
                           e.StudentId == instructorId &&
                           (e.Status == EnrollmentStatus.Active ||
-                           e.Status == EnrollmentStatus.Completed)))))
+                           e.Status == EnrollmentStatus.Completed))))))
             .OrderBy(s => s.CourseId)
             .ThenBy(s => s.Order)
             .Select(s => new SectionListDto(
