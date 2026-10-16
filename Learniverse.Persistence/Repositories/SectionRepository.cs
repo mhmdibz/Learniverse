@@ -2,6 +2,7 @@ using Learniverse.Application.Common.DTOs;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
 using Learniverse.Domain.Enums;
+using Learniverse.Domain.Enum;
 using Learniverse.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 

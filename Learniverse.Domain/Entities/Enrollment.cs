@@ -1,5 +1,5 @@
 ﻿using Learniverse.Domain.Common;
-using Learniverse.Domain.Enums;
+using Learniverse.Domain.Enum;
 using Learniverse.Domain.Exceptions;
 
 namespace Learniverse.Domain.Entities;

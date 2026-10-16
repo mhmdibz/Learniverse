@@ -1,5 +1,6 @@
 ﻿using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Enums;
+using Learniverse.Domain.Enum;
 using Learniverse.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 
