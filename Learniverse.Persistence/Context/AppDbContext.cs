@@ -21,6 +21,7 @@ public class AppDbContext
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     public override async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)
@@ -44,7 +45,7 @@ public class AppDbContext
                 }
             }
         }
-         
+
         return await base.SaveChangesAsync(cancellationToken);
     }
 
