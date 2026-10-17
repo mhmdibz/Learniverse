@@ -1,4 +1,5 @@
 ﻿using Learniverse.Domain.Entities;
+using Learniverse.Domain.Enums;
 using Learniverse.Domain.Enum;
 using Learniverse.Persistence.Identity;
 using Microsoft.EntityFrameworkCore;
