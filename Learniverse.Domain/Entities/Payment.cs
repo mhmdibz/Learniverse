@@ -30,6 +30,11 @@ public class Payment : BaseEntity
     public decimal Amount { get; private set; }
     public string Currency { get; private set; } = "EGP";
     public PaymentStatus Status { get; private set; }
+    public EnrollmentProvisioningStatus EnrollmentProvisioningStatus
+    {
+        get;
+        private set;
+    } = EnrollmentProvisioningStatus.NotStarted;
 
     // Reference of the payment session at the provider (set after the gateway accepts the request).
     public string? ExternalReference { get; private set; }
@@ -115,6 +120,35 @@ public class Payment : BaseEntity
         Status = PaymentStatus.Paid;
         ProviderTransactionId = providerTransactionId;
         PaidAtUtc = DateTime.UtcNow;
+    }
+
+    public void MarkEnrollmentProvisioningCompleted()
+    {
+        if (Status != PaymentStatus.Paid)
+            throw new DomainException(
+                "Enrollment provisioning can only complete for a paid payment.");
+
+        if (EnrollmentProvisioningStatus ==
+            EnrollmentProvisioningStatus.Completed)
+            return;
+
+        EnrollmentProvisioningStatus =
+            EnrollmentProvisioningStatus.Completed;
+    }
+
+    public void MarkEnrollmentProvisioningNeedsReview()
+    {
+        if (Status != PaymentStatus.Paid)
+            throw new DomainException(
+                "Enrollment provisioning review requires a paid payment.");
+
+        if (EnrollmentProvisioningStatus ==
+            EnrollmentProvisioningStatus.Completed)
+            throw new DomainException(
+                "Completed enrollment provisioning cannot need review.");
+
+        EnrollmentProvisioningStatus =
+            EnrollmentProvisioningStatus.NeedsReview;
     }
 
     public void MarkAsFailed()

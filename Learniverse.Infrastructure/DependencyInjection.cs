@@ -1,6 +1,8 @@
 ﻿using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Identity;
+using Learniverse.Application.Interfaces.Payments;
 using Learniverse.Infrastructure.Authentication;
+using Learniverse.Infrastructure.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +23,11 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<ITokenService, TokenService>();
+
+        services.AddOptions<PaymobOptions>()
+            .BindConfiguration(PaymobOptions.SectionName);
+
+        services.AddHttpClient<IPaymentGateway, PaymobPaymentGateway>();
 
         services.AddOptions<JwtOptions>()
             .BindConfiguration(JwtOptions.SectionName)

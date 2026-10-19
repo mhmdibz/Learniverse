@@ -67,6 +67,24 @@ public sealed class GlobalExceptionMiddleware
                     Errors = validationEx.Errors
                 }),
 
+            PaymentProviderRejectedException rejectedEx => (
+                HttpStatusCode.BadGateway,
+                new ErrorResponse
+                {
+                    StatusCode = (int)HttpStatusCode.BadGateway,
+                    Message = rejectedEx.Message,
+                    Errors = null
+                }),
+
+            PaymentOutcomeUnknownException unknownEx => (
+                HttpStatusCode.ServiceUnavailable,
+                new ErrorResponse
+                {
+                    StatusCode = (int)HttpStatusCode.ServiceUnavailable,
+                    Message = unknownEx.Message,
+                    Errors = null
+                }),
+
             NotFoundException notFoundEx => (
                 HttpStatusCode.NotFound,
                 new ErrorResponse

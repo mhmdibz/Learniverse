@@ -32,7 +32,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired();
-
+        builder.Property(p => p.EnrollmentProvisioningStatus)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .IsRequired();
         builder.Property(p => p.ExternalReference)
             .HasMaxLength(256);
 
