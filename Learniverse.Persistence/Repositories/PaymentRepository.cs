@@ -46,4 +46,12 @@ public sealed class PaymentRepository : IPaymentRepository
             .OrderByDescending(payment => payment.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
     }
+    public Task<Payment?> GetByExternalReferenceAsync(
+    string externalReference,
+    CancellationToken cancellationToken)
+    {
+        return _context.Payments.FirstOrDefaultAsync(
+            payment => payment.ExternalReference == externalReference,
+            cancellationToken);
+    }
 }
