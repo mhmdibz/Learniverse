@@ -25,6 +25,13 @@ public class IdentityService : IIdentityService
         _unitOfWork = unitOfWork;
     }
 
+    public async Task<string?> GetFullNameAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        return user?.FullName;
+    }
+
     public async Task<RegisterResult>
     RegisterStudentAsync(
             string fullName,

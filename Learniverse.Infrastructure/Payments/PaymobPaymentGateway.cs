@@ -48,6 +48,8 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
             },
             ["billing_data"] = new
             {
+                first_name = request.Customer.FirstName,
+                last_name = request.Customer.LastName,
                 phone_number = request.Customer.PhoneNumber
             },
             ["special_reference"] = specialReference,
@@ -77,6 +79,12 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
 
             if ((int)response.StatusCode is >= 400 and < 500)
             {
+                var rejectionBody = await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"Paymob rejection ({(int)response.StatusCode}): {rejectionBody}");
+
                 return new PaymentSessionResult(
                     PaymentSessionStatus.Rejected,
                     null,

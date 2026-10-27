@@ -10,6 +10,7 @@ using Learniverse.Persistence;
 using Learniverse.Persistence.Context;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,11 @@ namespace Learniverse.API
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+            });
+
             // Add services to the container.
             builder.Services.AddControllers();
             builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
@@ -154,6 +160,8 @@ namespace Learniverse.API
                     unitOfWork,
                     app.Lifetime.ApplicationStopping);
             }
+            app.UseForwardedHeaders();
+
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
             // Configure the HTTP request pipeline.

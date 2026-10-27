@@ -2,6 +2,8 @@
 
 public interface IIdentityService
 {
+    Task<string?> GetFullNameAsync(string userId);
+
     Task<RegisterResult> RegisterStudentAsync(
         string fullName,
         string userName,

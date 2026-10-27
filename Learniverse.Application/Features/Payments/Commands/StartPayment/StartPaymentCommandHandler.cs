@@ -1,5 +1,6 @@
 ﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Interfaces.Common;
+using Learniverse.Application.Interfaces.Identity;
 using Learniverse.Application.Interfaces.Payments;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
@@ -15,6 +16,7 @@ public sealed class StartPaymentCommandHandler
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentGateway _paymentGateway;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IIdentityService _identityService;
     private readonly IUnitOfWork _unitOfWork;
 
     public StartPaymentCommandHandler(
@@ -23,6 +25,7 @@ public sealed class StartPaymentCommandHandler
         IPaymentRepository paymentRepository,
         IPaymentGateway paymentGateway,
         ICurrentUserService currentUserService,
+        IIdentityService identityService,
         IUnitOfWork unitOfWork)
     {
         _courseRepository = courseRepository;
@@ -30,6 +33,7 @@ public sealed class StartPaymentCommandHandler
         _paymentRepository = paymentRepository;
         _paymentGateway = paymentGateway;
         _currentUserService = currentUserService;
+        _identityService = identityService;
         _unitOfWork = unitOfWork;
     }
 
@@ -73,6 +77,20 @@ public sealed class StartPaymentCommandHandler
                 "An active payment attempt already exists for this course.");
         }
 
+        var fullName = await _identityService.GetFullNameAsync(studentId);
+
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new ConflictException(
+                "A full name is required to start a payment.");
+
+        var nameParts = fullName.Trim().Split(
+            ' ',
+            StringSplitOptions.RemoveEmptyEntries);
+
+        if (nameParts.Length < 2)
+            throw new ConflictException(
+                "A first and last name are required to start a payment.");
+
         var expiresAtUtc = now.AddMinutes(30);
 
         var payment = Payment.Create(
@@ -91,7 +109,10 @@ public sealed class StartPaymentCommandHandler
                 decimal.ToInt64(payment.Amount * 100m),
                 payment.Currency,
                 course.Title,
-                new PaymentCustomerDetails(request.PhoneNumber.Trim())),
+                new PaymentCustomerDetails(
+                    nameParts[0],
+                    string.Join(' ', nameParts.Skip(1)),
+                    request.PhoneNumber.Trim())),
             cancellationToken);
 
         if (gatewayResult.Status == PaymentSessionStatus.Rejected)

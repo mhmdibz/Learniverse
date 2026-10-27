@@ -8,6 +8,8 @@ public sealed record StartPaymentRequest(
     PaymentCustomerDetails Customer);
 
 public sealed record PaymentCustomerDetails(
+    string FirstName,
+    string LastName,
     string PhoneNumber);
 
 public enum PaymentSessionStatus
