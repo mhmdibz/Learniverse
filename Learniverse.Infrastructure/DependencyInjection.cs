@@ -24,6 +24,8 @@ public static class DependencyInjection
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<ITokenService, TokenService>();
 
+        services.AddHostedService<PaymentExpirationBackgroundService>();
+
         services.AddOptions<PaymobOptions>()
             .BindConfiguration(PaymobOptions.SectionName);
 

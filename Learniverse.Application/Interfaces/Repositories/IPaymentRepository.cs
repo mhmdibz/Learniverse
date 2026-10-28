@@ -20,4 +20,8 @@ public interface IPaymentRepository
     Task<Payment?> GetByExternalReferenceAsync(
     string externalReference,
     CancellationToken cancellationToken);
+
+    Task<int> ExpirePendingAsync(
+        DateTime utcNow,
+        CancellationToken cancellationToken);
 }

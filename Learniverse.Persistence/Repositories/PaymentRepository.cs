@@ -54,4 +54,19 @@ public sealed class PaymentRepository : IPaymentRepository
             payment => payment.ExternalReference == externalReference,
             cancellationToken);
     }
+
+    public Task<int> ExpirePendingAsync(
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        return _context.Payments
+            .Where(payment =>
+                payment.Status == PaymentStatus.Pending &&
+                payment.ExpiresAtUtc <= utcNow)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    payment => payment.Status,
+                    PaymentStatus.Expired),
+                cancellationToken);
+    }
 }
