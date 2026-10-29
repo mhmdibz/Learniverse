@@ -46,6 +46,26 @@ public sealed class PaymentRepository : IPaymentRepository
             .OrderByDescending(payment => payment.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public Task<int> ExpirePendingForStudentAndCourseAsync(
+        string studentId,
+        Guid courseId,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        return _context.Payments
+            .Where(payment =>
+                payment.StudentId == studentId &&
+                payment.CourseId == courseId &&
+                payment.Status == PaymentStatus.Pending &&
+                payment.ExpiresAtUtc <= utcNow)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    payment => payment.Status,
+                    PaymentStatus.Expired),
+                cancellationToken);
+    }
+
     public Task<Payment?> GetByExternalReferenceAsync(
     string externalReference,
     CancellationToken cancellationToken)

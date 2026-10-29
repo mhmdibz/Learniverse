@@ -65,18 +65,6 @@ public sealed class StartPaymentCommandHandler
 
         var now = DateTime.UtcNow;
 
-        var activePayment = await _paymentRepository.GetActivePendingAsync(
-            studentId,
-            course.Id,
-            now,
-            cancellationToken);
-
-        if (activePayment is not null)
-        {
-            throw new ConflictException(
-                "An active payment attempt already exists for this course.");
-        }
-
         var fullName = await _identityService.GetFullNameAsync(studentId);
 
         if (string.IsNullOrWhiteSpace(fullName))
@@ -100,8 +88,48 @@ public sealed class StartPaymentCommandHandler
             "EGP",
             expiresAtUtc);
 
-        await _paymentRepository.AddAsync(payment, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        var hasActivePayment = false;
+
+        await _unitOfWork.BeginTransactionAsync(
+            cancellationToken,
+            System.Data.IsolationLevel.Serializable);
+
+        try
+        {
+            await _paymentRepository.ExpirePendingForStudentAndCourseAsync(
+                studentId,
+                course.Id,
+                now,
+                cancellationToken);
+
+            hasActivePayment =
+                await _paymentRepository.GetActivePendingAsync(
+                    studentId,
+                    course.Id,
+                    now,
+                    cancellationToken) is not null;
+
+            if (!hasActivePayment)
+            {
+                await _paymentRepository.AddAsync(payment, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync(
+                CancellationToken.None);
+
+            throw;
+        }
+
+        if (hasActivePayment)
+        {
+            throw new ConflictException(
+                "An active payment attempt already exists for this course.");
+        }
 
         var gatewayResult = await _paymentGateway.StartPaymentAsync(
             new StartPaymentRequest(

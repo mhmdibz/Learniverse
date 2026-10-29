@@ -243,7 +243,7 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
                         : null;
 
             var status =
-                IsRefunded(transaction)
+                IsRefundedOrVoided(transaction)
                     ? PaymentNotificationStatus.Unrecognized
                     : pending
                         ? PaymentNotificationStatus.Pending
@@ -387,13 +387,18 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
         return false;
     }
 
-    private static bool IsRefunded(JsonElement transaction)
+    private static bool IsRefundedOrVoided(JsonElement transaction)
     {
-        return TryGetBoolean(
-                   transaction,
-                   "is_refunded",
-                   out var isRefunded) &&
-               isRefunded;
+        return (TryGetBoolean(
+                    transaction,
+                    "is_refunded",
+                    out var isRefunded) &&
+                isRefunded) ||
+               (TryGetBoolean(
+                    transaction,
+                    "is_voided",
+                    out var isVoided) &&
+                isVoided);
     }
 
     private static PaymentNotificationResult UnverifiedNotification()

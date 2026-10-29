@@ -17,6 +17,13 @@ public interface IPaymentRepository
     Guid courseId,
     DateTime utcNow,
     CancellationToken cancellationToken);
+
+    Task<int> ExpirePendingForStudentAndCourseAsync(
+        string studentId,
+        Guid courseId,
+        DateTime utcNow,
+        CancellationToken cancellationToken);
+
     Task<Payment?> GetByExternalReferenceAsync(
     string externalReference,
     CancellationToken cancellationToken);

@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Interfaces.Common;
 using Learniverse.Domain.Common;
 using Learniverse.Domain.Entities;
+using System.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -71,14 +72,17 @@ public class AppDbContext
     private IDbContextTransaction? _currentTransaction;
 
     public async Task BeginTransactionAsync(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
     {
         if (_currentTransaction is not null)
             throw new InvalidOperationException(
                 "A transaction is already in progress.");
 
         _currentTransaction =
-            await Database.BeginTransactionAsync(cancellationToken);
+            await Database.BeginTransactionAsync(
+                isolationLevel,
+                cancellationToken);
     }
 
     public async Task CommitTransactionAsync(
