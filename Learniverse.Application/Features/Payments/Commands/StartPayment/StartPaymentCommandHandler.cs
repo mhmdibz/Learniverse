@@ -1,0 +1,172 @@
+﻿using Learniverse.Application.Exceptions;
+using Learniverse.Application.Interfaces.Common;
+using Learniverse.Application.Interfaces.Identity;
+using Learniverse.Application.Interfaces.Payments;
+using Learniverse.Application.Interfaces.Repositories;
+using Learniverse.Domain.Entities;
+using MediatR;
+
+namespace Learniverse.Application.Features.Payments.Commands.StartPayment;
+
+public sealed class StartPaymentCommandHandler
+    : IRequestHandler<StartPaymentCommand, StartPaymentResponse>
+{
+    private readonly ICourseRepository _courseRepository;
+    private readonly IEnrollmentRepository _enrollmentRepository;
+    private readonly IPaymentRepository _paymentRepository;
+    private readonly IPaymentGateway _paymentGateway;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IIdentityService _identityService;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public StartPaymentCommandHandler(
+        ICourseRepository courseRepository,
+        IEnrollmentRepository enrollmentRepository,
+        IPaymentRepository paymentRepository,
+        IPaymentGateway paymentGateway,
+        ICurrentUserService currentUserService,
+        IIdentityService identityService,
+        IUnitOfWork unitOfWork)
+    {
+        _courseRepository = courseRepository;
+        _enrollmentRepository = enrollmentRepository;
+        _paymentRepository = paymentRepository;
+        _paymentGateway = paymentGateway;
+        _currentUserService = currentUserService;
+        _identityService = identityService;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<StartPaymentResponse> Handle(
+        StartPaymentCommand request,
+        CancellationToken cancellationToken)
+    {
+        var course = await _courseRepository.GetPublishedByIdAsync(
+            request.CourseId,
+            cancellationToken);
+
+        if (course is null)
+            throw new NotFoundException(nameof(Course), request.CourseId);
+
+        if (course.Price <= 0)
+            throw new ConflictException(
+                "This course does not require payment.");
+
+        var studentId = _currentUserService.UserId;
+
+        if (await _enrollmentRepository.HasAccessAsync(
+            studentId,
+            course.Id,
+            cancellationToken))
+        {
+            throw new ConflictException(
+                "You are already enrolled in this course.");
+        }
+
+        var now = DateTime.UtcNow;
+
+        var fullName = await _identityService.GetFullNameAsync(studentId);
+
+        if (string.IsNullOrWhiteSpace(fullName))
+            throw new ConflictException(
+                "A full name is required to start a payment.");
+
+        var nameParts = fullName.Trim().Split(
+            ' ',
+            StringSplitOptions.RemoveEmptyEntries);
+
+        if (nameParts.Length < 2)
+            throw new ConflictException(
+                "A first and last name are required to start a payment.");
+
+        var expiresAtUtc = now.AddMinutes(30);
+
+        var payment = Payment.Create(
+            studentId,
+            course.Id,
+            course.Price,
+            "EGP",
+            expiresAtUtc);
+
+        var hasActivePayment = false;
+
+        await _unitOfWork.BeginTransactionAsync(
+            cancellationToken,
+            System.Data.IsolationLevel.Serializable);
+
+        try
+        {
+            await _paymentRepository.ExpirePendingForStudentAndCourseAsync(
+                studentId,
+                course.Id,
+                now,
+                cancellationToken);
+
+            hasActivePayment =
+                await _paymentRepository.GetActivePendingAsync(
+                    studentId,
+                    course.Id,
+                    now,
+                    cancellationToken) is not null;
+
+            if (!hasActivePayment)
+            {
+                await _paymentRepository.AddAsync(payment, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync(
+                CancellationToken.None);
+
+            throw;
+        }
+
+        if (hasActivePayment)
+        {
+            throw new ConflictException(
+                "An active payment attempt already exists for this course.");
+        }
+
+        var gatewayResult = await _paymentGateway.StartPaymentAsync(
+            new StartPaymentRequest(
+                payment.Id,
+                decimal.ToInt64(payment.Amount * 100m),
+                payment.Currency,
+                course.Title,
+                new PaymentCustomerDetails(
+                    nameParts[0],
+                    string.Join(' ', nameParts.Skip(1)),
+                    request.PhoneNumber.Trim())),
+            cancellationToken);
+
+        if (gatewayResult.Status == PaymentSessionStatus.Rejected)
+        {
+            payment.MarkAsFailed();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            throw new PaymentProviderRejectedException();
+        }
+
+        if (gatewayResult.Status == PaymentSessionStatus.Unknown)
+        {
+            throw new PaymentOutcomeUnknownException();
+        }
+
+        if (string.IsNullOrWhiteSpace(gatewayResult.CheckoutUrl) ||
+            string.IsNullOrWhiteSpace(gatewayResult.ExternalReference))
+        {
+            throw new PaymentOutcomeUnknownException();
+        }
+
+        payment.AttachExternalReference(gatewayResult.ExternalReference);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new StartPaymentResponse(
+            payment.Id,
+            gatewayResult.CheckoutUrl);
+    }
+}

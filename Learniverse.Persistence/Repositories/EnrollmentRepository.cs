@@ -1,4 +1,6 @@
 ﻿using Learniverse.Application.Interfaces.Repositories;
+using Learniverse.Domain.Entities;
+using Learniverse.Domain.Enum;
 using Learniverse.Domain.Enums;
 using Learniverse.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
@@ -25,5 +27,23 @@ public sealed class EnrollmentRepository : IEnrollmentRepository
                  && (e.Status == EnrollmentStatus.Active
                      || e.Status == EnrollmentStatus.Completed),
             cancellationToken);
+    }
+    public Task<Enrollment?> GetByStudentAndCourseAsync(
+    string studentId,
+    Guid courseId,
+    CancellationToken cancellationToken)
+    {
+        return _context.Enrollments.FirstOrDefaultAsync(
+            enrollment =>
+                enrollment.StudentId == studentId &&
+                enrollment.CourseId == courseId,
+            cancellationToken);
+    }
+
+    public async Task AddAsync(
+        Enrollment enrollment,
+        CancellationToken cancellationToken)
+    {
+        await _context.Enrollments.AddAsync(enrollment, cancellationToken);
     }
 }

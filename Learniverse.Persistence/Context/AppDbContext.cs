@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Interfaces.Common;
 using Learniverse.Domain.Common;
 using Learniverse.Domain.Entities;
+using System.Data;
 using Microsoft.EntityFrameworkCore.Storage;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public class AppDbContext
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     public override async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)
@@ -44,7 +46,7 @@ public class AppDbContext
                 }
             }
         }
-         
+
         return await base.SaveChangesAsync(cancellationToken);
     }
 
@@ -70,14 +72,17 @@ public class AppDbContext
     private IDbContextTransaction? _currentTransaction;
 
     public async Task BeginTransactionAsync(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
     {
         if (_currentTransaction is not null)
             throw new InvalidOperationException(
                 "A transaction is already in progress.");
 
         _currentTransaction =
-            await Database.BeginTransactionAsync(cancellationToken);
+            await Database.BeginTransactionAsync(
+                isolationLevel,
+                cancellationToken);
     }
 
     public async Task CommitTransactionAsync(

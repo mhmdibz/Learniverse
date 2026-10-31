@@ -1,5 +1,5 @@
 ﻿using Learniverse.Domain.Common;
-using Learniverse.Domain.Enums;
+using Learniverse.Domain.Enum;
 using Learniverse.Domain.Exceptions;
 
 namespace Learniverse.Domain.Entities;
@@ -51,5 +51,16 @@ public class Enrollment : BaseEntity
 
         Status = EnrollmentStatus.Cancelled;
         CancelledAtUtc = DateTime.UtcNow;
+    }
+    public void Reactivate()
+    {
+        if (Status != EnrollmentStatus.Cancelled)
+            throw new DomainException(
+                "Only cancelled enrollments can be reactivated.");
+
+        Status = EnrollmentStatus.Active;
+        EnrolledAtUtc = DateTime.UtcNow;
+        CancelledAtUtc = null;
+        CompletedAtUtc = null;
     }
 }

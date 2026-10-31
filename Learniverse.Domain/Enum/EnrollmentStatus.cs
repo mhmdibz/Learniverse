@@ -1,4 +1,4 @@
-﻿namespace Learniverse.Domain.Enums;
+﻿namespace Learniverse.Domain.Enum;
 
 public enum EnrollmentStatus
 {
