@@ -8,4 +8,5 @@ public sealed record ProcessPaymentNotificationCommand(
     : IRequest<ProcessPaymentNotificationResponse>;
 
 public sealed record ProcessPaymentNotificationResponse(
-    bool Acknowledged);
+    bool Acknowledged,
+    bool Retryable = false);

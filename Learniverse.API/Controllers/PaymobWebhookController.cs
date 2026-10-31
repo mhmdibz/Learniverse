@@ -30,7 +30,11 @@ public sealed class PaymobWebhookController : ControllerBase
             cancellationToken);
 
         if (!result.Acknowledged)
-            return Unauthorized();
+        {
+            return result.Retryable
+                ? StatusCode(StatusCodes.Status503ServiceUnavailable)
+                : Unauthorized();
+        }
 
         return Ok();
     }

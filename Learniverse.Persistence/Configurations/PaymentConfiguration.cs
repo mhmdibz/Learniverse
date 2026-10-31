@@ -32,6 +32,10 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired();
+        builder.Property(p => p.RefundStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
         builder.Property(p => p.EnrollmentProvisioningStatus)
             .HasConversion<string>()
             .HasMaxLength(30)
@@ -47,6 +51,11 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.Property(p => p.ExpiresAtUtc)
             .IsRequired();
+
+        builder.Property(p => p.RefundRequestedAtUtc);
+        builder.Property<byte[]>("RowVersion")
+            .IsRequired()
+            .IsRowVersion();
 
         builder.HasIndex(p => new { p.StudentId, p.CourseId });
 

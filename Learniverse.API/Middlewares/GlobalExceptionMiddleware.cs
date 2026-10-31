@@ -3,6 +3,7 @@ using Learniverse.Application.Exceptions;
 using Learniverse.Domain.Exceptions;
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using ValidationException = Learniverse.Application.Exceptions.ValidationException;
 
 namespace Learniverse.API.Middlewares;
@@ -76,6 +77,24 @@ public sealed class GlobalExceptionMiddleware
                     Errors = null
                 }),
 
+            PaymentRefundRejectedException refundRejectedEx => (
+                HttpStatusCode.BadGateway,
+                new ErrorResponse
+                {
+                    StatusCode = (int)HttpStatusCode.BadGateway,
+                    Message = refundRejectedEx.Message,
+                    Errors = null
+                }),
+
+            PaymentRefundOutcomeUnknownException refundUnknownEx => (
+                HttpStatusCode.ServiceUnavailable,
+                new ErrorResponse
+                {
+                    StatusCode = (int)HttpStatusCode.ServiceUnavailable,
+                    Message = refundUnknownEx.Message,
+                    Errors = null
+                }),
+
             PaymentOutcomeUnknownException unknownEx => (
                 HttpStatusCode.ServiceUnavailable,
                 new ErrorResponse
@@ -109,6 +128,15 @@ public sealed class GlobalExceptionMiddleware
                 {
                     StatusCode = (int)HttpStatusCode.Conflict,
                     Message = conflictEx.Message,
+                    Errors = null
+                }),
+
+            DbUpdateConcurrencyException => (
+                HttpStatusCode.Conflict,
+                new ErrorResponse
+                {
+                    StatusCode = (int)HttpStatusCode.Conflict,
+                    Message = "This payment was updated by another request. Refresh its status before trying again.",
                     Errors = null
                 }),
 

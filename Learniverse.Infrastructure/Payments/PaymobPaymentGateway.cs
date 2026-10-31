@@ -242,9 +242,10 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
                         ? directReference
                         : null;
 
-            var status =
-                IsRefundedOrVoided(transaction)
-                    ? PaymentNotificationStatus.Unrecognized
+            var status = IsVoided(transaction)
+                ? PaymentNotificationStatus.Unrecognized
+                : IsRefunded(transaction)
+                    ? PaymentNotificationStatus.Refunded
                     : pending
                         ? PaymentNotificationStatus.Pending
                         : success
@@ -263,6 +264,176 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
         catch (JsonException)
         {
             return Task.FromResult(UnverifiedNotification());
+        }
+    }
+
+    public async Task<PaymentRefundResult> RefundAsync(
+        PaymentRefundRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(_options.SecretKey) ||
+            string.IsNullOrWhiteSpace(_options.ApiKey) ||
+            !long.TryParse(
+                request.ProviderTransactionId,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var transactionId) ||
+            transactionId <= 0 ||
+            request.AmountInMinorUnits <= 0)
+        {
+            return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+        }
+
+        using var httpRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            "api/acceptance/void_refund/refund");
+
+        httpRequest.Headers.Authorization =
+            new AuthenticationHeaderValue("Token", _options.SecretKey);
+        httpRequest.Content = JsonContent.Create(new
+        {
+            transaction_id = transactionId,
+            amount_cents = request.AmountInMinorUnits
+        });
+
+        try
+        {
+            using var response = await _httpClient.SendAsync(
+                httpRequest,
+                cancellationToken);
+
+            if ((int)response.StatusCode is >= 400 and < 500)
+                return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+
+            return response.IsSuccessStatusCode
+                ? new PaymentRefundResult(PaymentRefundStatus.Accepted)
+                : new PaymentRefundResult(PaymentRefundStatus.Unknown);
+        }
+        catch (HttpRequestException)
+        {
+            return new PaymentRefundResult(PaymentRefundStatus.Unknown);
+        }
+        catch (OperationCanceledException)
+        {
+            // The request may have reached Paymob even if the caller disconnected.
+            return new PaymentRefundResult(PaymentRefundStatus.Unknown);
+        }
+    }
+
+    public async Task<PaymentRefundVerificationResult> VerifyRefundAsync(
+        string providerTransactionId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey) ||
+            !long.TryParse(
+                providerTransactionId,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var expectedTransactionId) ||
+            expectedTransactionId <= 0)
+        {
+            return UnverifiedRefund();
+        }
+
+        try
+        {
+            using var tokenRequest = new HttpRequestMessage(
+                HttpMethod.Post,
+                "api/auth/tokens")
+            {
+                Content = JsonContent.Create(new { api_key = _options.ApiKey })
+            };
+
+            using var tokenResponse = await _httpClient.SendAsync(
+                tokenRequest,
+                cancellationToken);
+
+            if (!tokenResponse.IsSuccessStatusCode)
+                return UnverifiedRefund();
+
+            using var tokenDocument = JsonDocument.Parse(
+                await tokenResponse.Content.ReadAsStringAsync(
+                    cancellationToken));
+
+            if (!tokenDocument.RootElement.TryGetProperty(
+                    "token",
+                    out var tokenElement) ||
+                tokenElement.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(tokenElement.GetString()))
+            {
+                return UnverifiedRefund();
+            }
+
+            using var transactionRequest = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"api/acceptance/transactions/{expectedTransactionId}");
+            transactionRequest.Headers.Authorization =
+                new AuthenticationHeaderValue("Bearer", tokenElement.GetString());
+
+            using var transactionResponse = await _httpClient.SendAsync(
+                transactionRequest,
+                cancellationToken);
+
+            if (!transactionResponse.IsSuccessStatusCode)
+                return UnverifiedRefund();
+
+            using var transactionDocument = JsonDocument.Parse(
+                await transactionResponse.Content.ReadAsStringAsync(
+                    cancellationToken));
+
+            var transaction = transactionDocument.RootElement;
+
+            if (!TryGetValueAtPath(transaction, ["id"], out var idText) ||
+                !long.TryParse(
+                    idText,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var transactionId) ||
+                transactionId != expectedTransactionId ||
+                !TryGetBoolean(transaction, "is_refunded", out var isRefunded) ||
+                !TryGetValueAtPath(transaction, ["currency"], out var currency))
+            {
+                return UnverifiedRefund();
+            }
+
+            long? refundedAmount = null;
+
+            if (TryGetValueAtPath(
+                    transaction,
+                    ["refunded_amount_cents"],
+                    out var refundedAmountText) &&
+                long.TryParse(
+                    refundedAmountText,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var parsedRefundedAmount))
+            {
+                refundedAmount = parsedRefundedAmount;
+            }
+
+            if (isRefunded && refundedAmount is null)
+                return UnverifiedRefund();
+
+            return new PaymentRefundVerificationResult(
+                true,
+                isRefunded,
+                refundedAmount ?? 0,
+                currency);
+        }
+        catch (HttpRequestException)
+        {
+            return UnverifiedRefund();
+        }
+        catch (JsonException)
+        {
+            return UnverifiedRefund();
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            return UnverifiedRefund();
         }
     }
 
@@ -387,18 +558,25 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
         return false;
     }
 
-    private static bool IsRefundedOrVoided(JsonElement transaction)
+    private static bool IsRefunded(JsonElement transaction)
     {
-        return (TryGetBoolean(
-                    transaction,
-                    "is_refunded",
-                    out var isRefunded) &&
-                isRefunded) ||
-               (TryGetBoolean(
-                    transaction,
-                    "is_voided",
-                    out var isVoided) &&
-                isVoided);
+        return TryGetBoolean(transaction, "is_refunded", out var isRefunded) &&
+               isRefunded;
+    }
+
+    private static bool IsVoided(JsonElement transaction)
+    {
+        return TryGetBoolean(transaction, "is_voided", out var isVoided) &&
+               isVoided;
+    }
+
+    private static PaymentRefundVerificationResult UnverifiedRefund()
+    {
+        return new PaymentRefundVerificationResult(
+            false,
+            false,
+            null,
+            null);
     }
 
     private static PaymentNotificationResult UnverifiedNotification()

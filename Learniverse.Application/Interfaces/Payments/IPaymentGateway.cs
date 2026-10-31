@@ -9,4 +9,12 @@ public interface IPaymentGateway
     Task<PaymentNotificationResult> VerifyNotificationAsync(
         PaymentNotificationRequest request,
         CancellationToken cancellationToken);
+
+    Task<PaymentRefundResult> RefundAsync(
+        PaymentRefundRequest request,
+        CancellationToken cancellationToken);
+
+    Task<PaymentRefundVerificationResult> VerifyRefundAsync(
+        string providerTransactionId,
+        CancellationToken cancellationToken);
 }
