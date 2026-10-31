@@ -114,8 +114,7 @@ public class Payment : BaseEntity
 
         //Expired is allowed: a verified success can arrive after our timeout.
         if (Status != PaymentStatus.Pending &&
-            Status != PaymentStatus.Expired &&
-            Status != PaymentStatus.Failed)
+            Status != PaymentStatus.Expired)
             throw new DomainException($"Cannot mark a {Status} payment as paid.");
 
         Status = PaymentStatus.Paid;
