@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Learniverse.Application.Interfaces.Payments;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Learniverse.Infrastructure.Payments;
@@ -13,13 +14,16 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
 {
     private readonly HttpClient _httpClient;
     private readonly PaymobOptions _options;
+    private readonly ILogger<PaymobPaymentGateway> _logger;
 
     public PaymobPaymentGateway(
         HttpClient httpClient,
-        IOptions<PaymobOptions> options)
+        IOptions<PaymobOptions> options,
+        ILogger<PaymobPaymentGateway> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _logger = logger;
 
         _httpClient.BaseAddress =
             new Uri(_options.ApiBaseUrl, UriKind.Absolute);
@@ -273,16 +277,36 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrWhiteSpace(_options.SecretKey) ||
-            string.IsNullOrWhiteSpace(_options.ApiKey) ||
-            !long.TryParse(
+        if (string.IsNullOrWhiteSpace(_options.SecretKey))
+        {
+            _logger.LogError(
+                "Paymob refund was not sent because the SecretKey is missing.");
+            return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+        }
+
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+        {
+            _logger.LogError(
+                "Paymob refund was not sent because the ApiKey is missing; refund verification would not be possible.");
+            return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+        }
+
+        if (!long.TryParse(
                 request.ProviderTransactionId,
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out var transactionId) ||
-            transactionId <= 0 ||
-            request.AmountInMinorUnits <= 0)
+            transactionId <= 0)
         {
+            _logger.LogError(
+                "Paymob refund was not sent because the provider transaction ID is invalid.");
+            return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+        }
+
+        if (request.AmountInMinorUnits <= 0)
+        {
+            _logger.LogError(
+                "Paymob refund was not sent because the refund amount is not positive.");
             return new PaymentRefundResult(PaymentRefundStatus.Rejected);
         }
 
@@ -305,21 +329,72 @@ public sealed class PaymobPaymentGateway : IPaymentGateway
                 cancellationToken);
 
             if ((int)response.StatusCode is >= 400 and < 500)
-                return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+            {
+                var providerMessage = await response.Content.ReadAsStringAsync(
+                    cancellationToken);
 
-            return response.IsSuccessStatusCode
-                ? new PaymentRefundResult(PaymentRefundStatus.Accepted)
-                : new PaymentRefundResult(PaymentRefundStatus.Unknown);
+                _logger.LogWarning(
+                    "Paymob rejected the refund request with HTTP {StatusCode}. Provider response: {ProviderResponse}",
+                    (int)response.StatusCode,
+                    GetProviderErrorMessage(providerMessage));
+
+                return new PaymentRefundResult(PaymentRefundStatus.Rejected);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Paymob refund request returned HTTP {StatusCode}; the outcome is treated as unknown.",
+                    (int)response.StatusCode);
+
+                return new PaymentRefundResult(PaymentRefundStatus.Unknown);
+            }
+
+            return new PaymentRefundResult(PaymentRefundStatus.Accepted);
         }
         catch (HttpRequestException)
         {
+            _logger.LogWarning(
+                "The Paymob refund request failed before a definitive response was received.");
             return new PaymentRefundResult(PaymentRefundStatus.Unknown);
         }
         catch (OperationCanceledException)
         {
             // The request may have reached Paymob even if the caller disconnected.
+            _logger.LogWarning(
+                "The Paymob refund request was cancelled after it may have reached the provider.");
             return new PaymentRefundResult(PaymentRefundStatus.Unknown);
         }
+    }
+
+    private static string GetProviderErrorMessage(string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+
+            foreach (var propertyName in new[] { "message", "detail", "error" })
+            {
+                if (document.RootElement.TryGetProperty(
+                        propertyName,
+                        out var property) &&
+                    property.ValueKind == JsonValueKind.String)
+                {
+                    var message = property.GetString();
+
+                    if (!string.IsNullOrWhiteSpace(message))
+                        return message.Length <= 500
+                            ? message
+                            : message[..500];
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Do not log an unstructured provider response that may contain sensitive data.
+        }
+
+        return "No safe provider error message was returned.";
     }
 
     public async Task<PaymentRefundVerificationResult> VerifyRefundAsync(
