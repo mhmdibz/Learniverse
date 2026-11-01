@@ -2,6 +2,7 @@
 using Learniverse.Domain.Enum;
 using Learniverse.Domain.Enums;
 using Learniverse.Domain.Exceptions;
+using RefundLifecycleStatus = Learniverse.Domain.Enum.RefundStatus;
 
 namespace Learniverse.Domain.Entities;
 
@@ -30,6 +31,8 @@ public class Payment : BaseEntity
     public decimal Amount { get; private set; }
     public string Currency { get; private set; } = "EGP";
     public PaymentStatus Status { get; private set; }
+    public RefundLifecycleStatus RefundStatus { get; private set; } =
+        RefundLifecycleStatus.NotRequested;
     public EnrollmentProvisioningStatus EnrollmentProvisioningStatus
     {
         get;
@@ -46,6 +49,7 @@ public class Payment : BaseEntity
     public DateTime ExpiresAtUtc { get; private set; }
     public DateTime? PaidAtUtc { get; private set; }
     public DateTime? RefundedAtUtc { get; private set; }
+    public DateTime? RefundRequestedAtUtc { get; private set; }
 
     public static Payment Create(
         string studentId,
@@ -114,8 +118,7 @@ public class Payment : BaseEntity
 
         //Expired is allowed: a verified success can arrive after our timeout.
         if (Status != PaymentStatus.Pending &&
-            Status != PaymentStatus.Expired &&
-            Status != PaymentStatus.Failed)
+            Status != PaymentStatus.Expired)
             throw new DomainException($"Cannot mark a {Status} payment as paid.");
 
         Status = PaymentStatus.Paid;
@@ -176,14 +179,62 @@ public class Payment : BaseEntity
 
     public void MarkAsRefunded()
     {
-        if (Status == PaymentStatus.Refunded)
+        if (Status == PaymentStatus.Refunded &&
+            RefundStatus == RefundLifecycleStatus.Completed)
             return;
 
         if (Status != PaymentStatus.Paid)
             throw new DomainException(
                 "Only a paid payment can be refunded.");
 
+        if (RefundStatus is not RefundLifecycleStatus.Pending and
+            not RefundLifecycleStatus.OutcomeUnknown and
+            not RefundLifecycleStatus.Rejected)
+            throw new DomainException(
+                "Only a pending or unconfirmed refund can be completed.");
+
         Status = PaymentStatus.Refunded;
+        RefundStatus = RefundLifecycleStatus.Completed;
         RefundedAtUtc = DateTime.UtcNow;
+    }
+
+    public void MarkRefundAsPending()
+    {
+        if (Status != PaymentStatus.Paid)
+            throw new DomainException(
+                "Only a paid payment can be submitted for refund.");
+
+        if (RefundStatus is not RefundLifecycleStatus.NotRequested and
+            not RefundLifecycleStatus.Rejected)
+            throw new DomainException(
+                "A refund request is already active or completed.");
+
+        RefundStatus = RefundLifecycleStatus.Pending;
+        RefundRequestedAtUtc = DateTime.UtcNow;
+    }
+
+    public void MarkRefundOutcomeUnknown()
+    {
+        if (RefundStatus == RefundLifecycleStatus.OutcomeUnknown)
+            return;
+
+        if (RefundStatus is not RefundLifecycleStatus.Pending and
+            not RefundLifecycleStatus.Rejected)
+            throw new DomainException(
+                "Only a pending or rejected refund can have an unknown outcome.");
+
+        RefundStatus = RefundLifecycleStatus.OutcomeUnknown;
+    }
+
+    public void MarkRefundAsRejected()
+    {
+        if (RefundStatus == RefundLifecycleStatus.Rejected)
+            return;
+
+        if (RefundStatus != RefundLifecycleStatus.Pending)
+            throw new DomainException(
+                "Only a pending refund can be rejected.");
+
+        RefundStatus = RefundLifecycleStatus.Rejected;
     }
 }

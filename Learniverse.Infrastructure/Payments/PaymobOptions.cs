@@ -11,6 +11,7 @@ public sealed class PaymobOptions
         "https://eg.checkout.paymob.com/";
     public string HmacSecret { get; init; } = string.Empty;
     public string SecretKey { get; init; } = string.Empty;
+    public string ApiKey { get; init; } = string.Empty;
     public string PublicKey { get; init; } = string.Empty;
 
     public int[] IntegrationIds { get; init; } = [];

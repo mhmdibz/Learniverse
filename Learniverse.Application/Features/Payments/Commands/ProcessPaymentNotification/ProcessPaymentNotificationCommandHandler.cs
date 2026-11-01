@@ -85,6 +85,81 @@ public sealed class ProcessPaymentNotificationCommandHandler
             return new ProcessPaymentNotificationResponse(true);
         }
 
+        if (notification.Status == PaymentNotificationStatus.Refunded)
+        {
+            if (payment.Status == PaymentStatus.Refunded)
+                return new ProcessPaymentNotificationResponse(true);
+
+            if (payment.Status != PaymentStatus.Paid ||
+                payment.RefundStatus is not RefundStatus.Pending and
+                    not RefundStatus.OutcomeUnknown and
+                    not RefundStatus.Rejected ||
+                string.IsNullOrWhiteSpace(payment.ProviderTransactionId))
+            {
+                _logger.LogWarning(
+                    "Received a refund notification without a matching active refund request for payment {PaymentId}.",
+                    payment.Id);
+
+                return new ProcessPaymentNotificationResponse(true);
+            }
+
+            var refundVerification =
+                await _paymentGateway.VerifyRefundAsync(
+                    payment.ProviderTransactionId,
+                    cancellationToken);
+
+            if (!refundVerification.IsVerified ||
+                !refundVerification.IsRefunded)
+            {
+                return new ProcessPaymentNotificationResponse(
+                    false,
+                    Retryable: true);
+            }
+
+            if (refundVerification.RefundedAmountInMinorUnits !=
+                    expectedAmountInMinorUnits ||
+                !string.Equals(
+                    refundVerification.Currency,
+                    payment.Currency,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogError(
+                    "Paymob reports a refund that does not match the full amount or currency for payment {PaymentId}; manual review is required.",
+                    payment.Id);
+
+                if (payment.RefundStatus is RefundStatus.Pending
+                    or RefundStatus.Rejected)
+                {
+                    await SaveInTransactionAsync(
+                        () =>
+                        {
+                            payment.MarkRefundOutcomeUnknown();
+                            return Task.CompletedTask;
+                        },
+                        cancellationToken);
+                }
+
+                return new ProcessPaymentNotificationResponse(true);
+            }
+
+            await SaveInTransactionAsync(
+                async () =>
+                {
+                    payment.MarkAsRefunded();
+
+                    var enrollment =
+                        await _enrollmentRepository.GetByStudentAndCourseAsync(
+                            payment.StudentId,
+                            payment.CourseId,
+                            cancellationToken);
+
+                    enrollment?.Cancel();
+                },
+                cancellationToken);
+
+            return new ProcessPaymentNotificationResponse(true);
+        }
+
         if (notification.Status is PaymentNotificationStatus.Pending
             or PaymentNotificationStatus.Unrecognized)
         {

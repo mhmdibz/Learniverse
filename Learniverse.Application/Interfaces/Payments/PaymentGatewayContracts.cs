@@ -7,6 +7,25 @@ public sealed record StartPaymentRequest(
     string ItemName,
     PaymentCustomerDetails Customer);
 
+public sealed record PaymentRefundRequest(
+    string ProviderTransactionId,
+    long AmountInMinorUnits);
+
+public enum PaymentRefundStatus
+{
+    Accepted,
+    Rejected,
+    Unknown
+}
+
+public sealed record PaymentRefundResult(PaymentRefundStatus Status);
+
+public sealed record PaymentRefundVerificationResult(
+    bool IsVerified,
+    bool IsRefunded,
+    long? RefundedAmountInMinorUnits,
+    string? Currency);
+
 public sealed record PaymentCustomerDetails(
     string FirstName,
     string LastName,
@@ -33,6 +52,7 @@ public enum PaymentNotificationStatus
     Succeeded,
     Failed,
     Pending,
+    Refunded,
     Unrecognized
 }
 
