@@ -9,6 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Learniverse.Application.Interfaces.Email;
+using Learniverse.Infrastructure.Email;
+using Microsoft.Extensions.Hosting;
 
 namespace Learniverse.Infrastructure;
 
@@ -16,7 +19,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         services.AddDataProtection();
         services.AddHttpContextAccessor();
@@ -73,6 +77,41 @@ public static class DependencyInjection
         services.AddSingleton<
         IValidateOptions<BootstrapAdminOptions>,
         BootstrapAdminOptionsValidator>();
+        var passwordResetOptions = services
+            .AddOptions<PasswordResetLinkOptions>()
+            .BindConfiguration(PasswordResetLinkOptions.SectionName);
+
+        services.AddSingleton<
+            IValidateOptions<PasswordResetLinkOptions>,
+            PasswordResetLinkOptionsValidator>();
+
+        services.AddScoped<
+            IPasswordResetLinkBuilder,
+            PasswordResetLinkBuilder>();
+
+        var resendOptions = services
+            .AddOptions<ResendOptions>()
+            .BindConfiguration(ResendOptions.SectionName);
+
+        services.AddSingleton<
+            IValidateOptions<ResendOptions>,
+            ResendOptionsValidator>();
+
+        if (environment.IsDevelopment())
+        {
+            services.AddScoped<IEmailSender, LoggingEmailSender>();
+        }
+        else
+        {
+            passwordResetOptions.ValidateOnStart();
+            resendOptions.ValidateOnStart();
+
+            services.AddHttpClient<IEmailSender, ResendEmailSender>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.resend.com/");
+            });
+        }
+
         return services;
     }
 }

@@ -14,4 +14,14 @@ public interface IIdentityService
         string identifier,
         string password,
         CancellationToken cancellationToken);
+
+    Task<string?> GeneratePasswordResetTokenAsync(
+        string email,
+        CancellationToken cancellationToken);
+
+    Task<PasswordResetResult> ResetPasswordAsync(
+        string email,
+        string token,
+        string newPassword,
+        CancellationToken cancellationToken);
 }

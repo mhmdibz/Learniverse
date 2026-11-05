@@ -83,7 +83,9 @@ namespace Learniverse.API
             });
             builder.Services.AddApplication();
             builder.Services.AddPersistence(builder.Configuration);
-            builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddInfrastructure(
+                builder.Configuration,
+                builder.Environment);
             builder.Services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
