@@ -249,14 +249,40 @@ Students with `Active` or `Completed` enrollments retain access to `Archived` co
 
 ---
 
+## Current Implementation — Enrollment & Payment
+
+Paymob is the selected payment provider and is integrated behind the `IPaymentGateway` abstraction. Starting a payment creates a payment attempt for a published paid course. A verified server-side Paymob notification, rather than a browser redirect, confirms payment and triggers enrollment provisioning. Duplicate notifications are handled without provisioning the enrollment more than once. A cancelled enrollment is reactivated when a later successful payment is confirmed.
+
+Administrators can request a full refund through Paymob. Refund status is tracked locally and reconciled against the provider before the payment and related enrollment are updated. The payment, enrollment, webhook, and refund flows have been exercised in Paymob Test Mode.
+
 ## Pending Decisions — Enrollment & Payment
 
-These items must be discussed before documenting them as accepted architecture or product decisions:
+The following product or policy decisions remain open:
 
-- An external payment provider is planned for the Enrollment flow, but no provider has been selected.
-- Enrollment creation and the payment lifecycle are not complete. Payment states, retries, cancellations, refunds, and provider-specific behavior remain undecided.
-- Payment confirmation must be handled by the server; webhook verification and duplicate-event handling still need to be decided. A browser redirect alone must not activate an enrollment.
-- The current unique index on `(StudentId, CourseId)` affects re-enrollment after cancellation; the desired behavior is undecided.
-- The behavior of cancelling a `Completed` enrollment needs confirmation.
-- Whether courses can be free, paid, or both remains a product decision.
-- The effect of soft-deleting a course with active or paid enrollments needs a business decision. Soft deletion is separate from archiving.
+- Whether Learniverse will support free courses alongside paid courses. The current payment-start flow rejects courses that do not require payment; a separate free-enrollment flow is not documented here.
+- Whether a `Completed` enrollment may be cancelled outside the refund flow. The current domain method permits cancellation, but the product policy is not documented.
+- How soft-deleting a course should affect active or paid enrollments. Soft deletion remains separate from archiving.
+
+---
+
+## ADR-007 — Password Reset & Email Delivery
+
+**Status:** Accepted
+
+### Context
+
+The API needs a password recovery flow that does not reveal whether an email address belongs to an account. The solution must fit the existing Clean Architecture boundaries and support a future frontend, while the project currently remains backend-only.
+
+### Decision
+
+- Use ASP.NET Core Identity's Data Protection token provider to generate and validate password-reset tokens through `IIdentityService`. Set their lifespan to one hour.
+- Expose anonymous `POST /api/auth/forgot-password` and `POST /api/auth/reset-password` endpoints. Apply Rate Limiting to both endpoints, and return the same response from the forgot-password endpoint whether or not the email belongs to an account.
+- Build reset links from the configured `PasswordReset:ResetPasswordUrl`, never from request host data. Put the email and Base64Url-encoded token in the URL fragment.
+- Keep the generic `IEmailSender` abstraction in Application. Use `LoggingEmailSender` in Development and send through Resend's HTTP API in other environments.
+- Do not write the reset token or link to logs.
+
+### Consequences
+
+- Reset tokens are Data Protection tokens and are not persisted as application records; this flow requires no database migration.
+- A frontend page must read the URL fragment and submit the email, token, and new password to the reset endpoint. Production email delivery requires valid Resend configuration and a verified sending domain.
+- Access JWTs issued before a password reset remain valid until their configured expiration; password reset does not revoke them.

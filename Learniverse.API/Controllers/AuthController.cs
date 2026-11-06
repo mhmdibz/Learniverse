@@ -91,6 +91,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("forgot-password")]
     public async Task<IActionResult> ForgotPassword(
         ForgotPasswordRequest request,
         CancellationToken cancellationToken)
@@ -107,6 +108,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("reset-password")]
     public async Task<IActionResult> ResetPassword(
         ResetPasswordRequest request,
         CancellationToken cancellationToken)
