@@ -1,9 +1,12 @@
 ﻿using FluentValidation;
 using Learniverse.API.Contracts.Requests.Identity;
 using Learniverse.API.Contracts.Responses.Identity;
+using Learniverse.Application.Features.Identity.Commands.ForgotPassword;
 using Learniverse.Application.Features.Identity.Commands.Login;
 using Learniverse.Application.Features.Identity.Commands.Register;
+using Learniverse.Application.Features.Identity.Commands.ResetPassword;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using ApplicationValidationException =
@@ -84,5 +87,42 @@ public class AuthController : ControllerBase
             new LoginResponse(
                 result.AccessToken,
                 result.ExpiresAtUtc));
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _sender.Send(
+            new ForgotPasswordCommand(request.Email),
+            cancellationToken);
+
+        Response.Headers.CacheControl = "no-store";
+
+        return Ok(new AuthMessageResponse(
+            "If an account with that email exists, a reset link has been sent."));
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting("reset-password")]
+    public async Task<IActionResult> ResetPassword(
+        ResetPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _sender.Send(
+            new ResetPasswordCommand(
+                request.Email,
+                request.Token,
+                request.NewPassword),
+            cancellationToken);
+
+        Response.Headers.CacheControl = "no-store";
+
+        return Ok(new AuthMessageResponse(
+            "Password has been reset successfully."));
     }
 }

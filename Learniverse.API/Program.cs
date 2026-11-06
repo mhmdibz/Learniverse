@@ -83,7 +83,9 @@ namespace Learniverse.API
             });
             builder.Services.AddApplication();
             builder.Services.AddPersistence(builder.Configuration);
-            builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.AddInfrastructure(
+                builder.Configuration,
+                builder.Environment);
             builder.Services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -127,6 +129,30 @@ namespace Learniverse.API
                         {
                             PermitLimit = 5,
                             Window = TimeSpan.FromMinutes(10),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+
+                options.AddPolicy("forgot-password", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 3,
+                            Window = TimeSpan.FromMinutes(15),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+
+                options.AddPolicy("reset-password", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 5,
+                            Window = TimeSpan.FromMinutes(15),
                             QueueLimit = 0,
                             AutoReplenishment = true
                         }));

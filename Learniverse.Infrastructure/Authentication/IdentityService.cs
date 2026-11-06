@@ -3,6 +3,7 @@ using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Identity;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
+using System.Text;
 
 namespace Learniverse.Infrastructure.Authentication;
 
@@ -157,5 +158,88 @@ public class IdentityService : IIdentityService
 
         return AuthenticationResult.Failure(
             AuthenticationFailureReason.InvalidCredentials);
+    }
+    public async Task<string?> GeneratePasswordResetTokenAsync(
+    string email,
+    CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        return await _userManager.GeneratePasswordResetTokenAsync(user);
+    }
+
+    public async Task<PasswordResetResult> ResetPasswordAsync(
+        string email,
+        string token,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user is null || !TryDecodeBase64Url(token, out var identityToken))
+        {
+            return PasswordResetResult.Failure(
+                new[] { "The password reset token is invalid or expired." });
+        }
+
+        var result = await _userManager.ResetPasswordAsync(
+            user,
+            identityToken,
+            newPassword);
+
+        return result.Succeeded
+            ? PasswordResetResult.Success()
+            : PasswordResetResult.Failure(
+                result.Errors.Select(error => error.Description));
+    }
+
+    private static bool TryDecodeBase64Url(
+        string value,
+        out string decoded)
+    {
+        decoded = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalized = value
+            .Replace('-', '+')
+            .Replace('_', '/');
+
+        normalized = (normalized.Length % 4) switch
+        {
+            0 => normalized,
+            2 => normalized + "==",
+            3 => normalized + "=",
+            _ => string.Empty
+        };
+
+        if (normalized.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            decoded = Encoding.UTF8.GetString(
+                Convert.FromBase64String(normalized));
+
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 }
