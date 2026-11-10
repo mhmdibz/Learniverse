@@ -1,4 +1,5 @@
-﻿using Learniverse.Application.Interfaces.Repositories;
+﻿using Learniverse.Application.Common.DTOs;
+using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
 using Learniverse.Domain.Enum;
 using Learniverse.Domain.Enums;
@@ -38,6 +39,29 @@ public sealed class EnrollmentRepository : IEnrollmentRepository
                 enrollment.StudentId == studentId &&
                 enrollment.CourseId == courseId,
             cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<StudentEnrollmentDto>> GetStudentEnrollmentsAsync(
+        string studentId,
+        CancellationToken cancellationToken)
+    {
+        return await (
+            from enrollment in _context.Enrollments.AsNoTracking()
+            join course in _context.Courses.AsNoTracking()
+                on enrollment.CourseId equals course.Id
+            where enrollment.StudentId == studentId
+                  && (enrollment.Status == EnrollmentStatus.Active
+                      || enrollment.Status == EnrollmentStatus.Completed)
+            orderby enrollment.EnrolledAtUtc descending
+            select new StudentEnrollmentDto(
+                course.Id,
+                course.Title,
+                course.Price,
+                course.Status,
+                enrollment.Status,
+                enrollment.EnrolledAtUtc,
+                enrollment.CompletedAtUtc))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(
