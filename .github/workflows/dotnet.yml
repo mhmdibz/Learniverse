@@ -24,3 +24,7 @@ jobs:
 
       - name: Build
         run: dotnet build Learniverse.slnx --no-restore
+
+      - name: Test
+        run: dotnet test Learniverse.slnx --no-build
+

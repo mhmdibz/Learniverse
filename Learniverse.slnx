@@ -7,4 +7,5 @@
   <Project Path="Learniverse.Domain/Learniverse.Domain.csproj" />
   <Project Path="Learniverse.Infrastructure/Learniverse.Infrastructure.csproj" />
   <Project Path="Learniverse.Persistence/Learniverse.Persistence.csproj" />
+  <Project Path="Learniverse.UnitTests/Learniverse.UnitTests.csproj" />
 </Solution>
