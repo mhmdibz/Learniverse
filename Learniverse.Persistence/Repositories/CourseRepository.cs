@@ -1,4 +1,5 @@
 using Learniverse.Application.Common.DTOs;
+using Learniverse.Application.Common.Models;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Domain.Entities;
 using Learniverse.Domain.Enums;
@@ -59,12 +60,14 @@ public class CourseRepository : ICourseRepository
                 cancellationToken);
     }
 
-    public async Task<IReadOnlyList<CourseListDto>> GetAllAsync(
+    public async Task<PagedResult<CourseListDto>> GetAllAsync(
         bool isAdmin,
         string? instructorId,
+        int pageNumber,
+        int pageSize,
         CancellationToken cancellationToken)
     {
-        return await _context.Courses
+        var visibleCourses = _context.Courses
             .AsNoTracking()
             .Where(c =>
                 isAdmin ||
@@ -76,8 +79,15 @@ public class CourseRepository : ICourseRepository
                      e.CourseId == c.Id &&
                      e.StudentId == instructorId &&
                      (e.Status == EnrollmentStatus.Active ||
-                      e.Status == EnrollmentStatus.Completed))))
+                      e.Status == EnrollmentStatus.Completed))));
+
+        var totalCount = await visibleCourses.CountAsync(cancellationToken);
+
+        var items = await visibleCourses
             .OrderBy(c => c.Title)
+            .ThenBy(c => c.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .Select(c => new CourseListDto(
                 c.Id,
                 c.Title,
@@ -88,6 +98,12 @@ public class CourseRepository : ICourseRepository
                 c.Category.Name,
                 c.CreatedAtUtc))
             .ToListAsync(cancellationToken);
+
+        return new PagedResult<CourseListDto>(
+            items,
+            pageNumber,
+            pageSize,
+            totalCount);
     }
 
     public async Task<Course?> GetByIdWithSectionsAsync(

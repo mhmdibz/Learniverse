@@ -1,9 +1,10 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Learniverse.API.Contracts.Requests;
 using Learniverse.API.Contracts.Responses;
 using Learniverse.Application.Features.Courses.Commands.CreateCourse;
 using Learniverse.Application.Features.Courses.Commands.DeleteCourse;
 using Learniverse.Application.Features.Courses.Commands.UpdateCourse;
+using Learniverse.Application.Common.Models;
 using Learniverse.Application.Features.Courses.Queries.GetAllCourses;
 using Learniverse.Application.Features.Courses.Queries.GetCourseById;
 using Learniverse.Application.Features.Lessons.Queries.GetAllLessons;
@@ -56,16 +57,19 @@ namespace Learniverse.API.Controllers
                 null);
         }
         [HttpGet]
-        [ProducesResponseType(
-    typeof(IReadOnlyList<GetAllCoursesResponse>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
-        {
-            var query = new GetAllCoursesQuery();
+[ProducesResponseType(
+    typeof(PagedResult<GetAllCoursesResponse>),
+    StatusCodes.Status200OK)]
+public async Task<IActionResult> GetAll(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10,
+    CancellationToken cancellationToken = default)
+{
+    var query = new GetAllCoursesQuery(pageNumber, pageSize);
 
-            var response = await _mediator.Send(query, cancellationToken);
-            return Ok(response);
-
-        }
+    var response = await _mediator.Send(query, cancellationToken);
+    return Ok(response);
+}
         [HttpPut("{id:guid}")]
         [Authorize(Roles = "Instructor,Admin")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
