@@ -259,7 +259,7 @@ Administrators can request a full refund through Paymob. Refund status is tracke
 
 The following product or policy decisions remain open:
 
-- Whether Learniverse will support free courses alongside paid courses. The current payment-start flow rejects courses that do not require payment; a separate free-enrollment flow is not documented here.
+- Free courses are not currently supported. The payment-start flow rejects courses that do not require payment, and no free-enrollment flow exists. Whether free courses will be supported in the future remains undecided.
 - Whether a `Completed` enrollment may be cancelled outside the refund flow. The current domain method permits cancellation, but the product policy is not documented.
 - How soft-deleting a course should affect active or paid enrollments. Soft deletion remains separate from archiving.
 
@@ -286,3 +286,27 @@ The API needs a password recovery flow that does not reveal whether an email add
 - Reset tokens are Data Protection tokens and are not persisted as application records; this flow requires no database migration.
 - A frontend page must read the URL fragment and submit the email, token, and new password to the reset endpoint. Production email delivery requires valid Resend configuration and a verified sending domain.
 - Access JWTs issued before a password reset remain valid until their configured expiration; password reset does not revoke them.
+
+---
+
+## ADR-008 — Server-side Course Pagination
+
+**Status:** Accepted
+
+### Context
+
+The course-list endpoint previously returned all visible courses in one response. The API needs to limit each response while preserving the existing course-visibility rules.
+
+### Decision
+
+- Apply server-side pagination to `GET /api/courses`.
+- Use one-based `pageNumber` and `pageSize` query parameters. Default to page `1` and page size `10`; accept page sizes from `1` through `50`.
+- Apply the existing visibility filters before counting and paging results in the database.
+- Order results by course title and then course ID to keep page ordering deterministic.
+- Return a paged response containing `items`, `pageNumber`, `pageSize`, `totalCount`, and `totalPages`.
+- Pagination is enabled for the course list only; other list endpoints remain unchanged until separately designed.
+
+### Consequences
+
+- The response shape of `GET /api/courses` is now a paged object rather than a bare list, so API consumers must read the `items` field and pagination metadata.
+- The repository performs counting and page selection in the database instead of loading all visible courses into application memory.
