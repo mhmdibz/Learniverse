@@ -89,6 +89,18 @@ public static class DependencyInjection
             IPasswordResetLinkBuilder,
             PasswordResetLinkBuilder>();
 
+        var emailConfirmationOptions = services
+            .AddOptions<EmailConfirmationLinkOptions>()
+            .BindConfiguration(EmailConfirmationLinkOptions.SectionName);
+
+        services.AddSingleton<
+            IValidateOptions<EmailConfirmationLinkOptions>,
+            EmailConfirmationLinkOptionsValidator>();
+
+        services.AddScoped<
+            IEmailConfirmationLinkBuilder,
+            EmailConfirmationLinkBuilder>();
+
         var resendOptions = services
             .AddOptions<ResendOptions>()
             .BindConfiguration(ResendOptions.SectionName);
@@ -104,6 +116,7 @@ public static class DependencyInjection
         else
         {
             passwordResetOptions.ValidateOnStart();
+            emailConfirmationOptions.ValidateOnStart();
             resendOptions.ValidateOnStart();
 
             services.AddHttpClient<IEmailSender, ResendEmailSender>(client =>

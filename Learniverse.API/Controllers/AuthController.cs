@@ -2,8 +2,10 @@
 using Learniverse.API.Contracts.Requests.Identity;
 using Learniverse.API.Contracts.Responses.Identity;
 using Learniverse.Application.Features.Identity.Commands.ForgotPassword;
+using Learniverse.Application.Features.Identity.Commands.ConfirmEmail;
 using Learniverse.Application.Features.Identity.Commands.Login;
 using Learniverse.Application.Features.Identity.Commands.Register;
+using Learniverse.Application.Features.Identity.Commands.ResendEmailConfirmation;
 using Learniverse.Application.Features.Identity.Commands.ResetPassword;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -124,5 +126,39 @@ public class AuthController : ControllerBase
 
         return Ok(new AuthMessageResponse(
             "Password has been reset successfully."));
+    }
+
+    [HttpPost("confirm-email")]
+    [AllowAnonymous]
+    [EnableRateLimiting("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail(
+        ConfirmEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _sender.Send(
+            new ConfirmEmailCommand(request.Email, request.Token),
+            cancellationToken);
+
+        Response.Headers.CacheControl = "no-store";
+
+        return Ok(new AuthMessageResponse(
+            "Email has been confirmed successfully."));
+    }
+
+    [HttpPost("resend-confirmation")]
+    [AllowAnonymous]
+    [EnableRateLimiting("resend-confirmation")]
+    public async Task<IActionResult> ResendEmailConfirmation(
+        ResendEmailConfirmationRequest request,
+        CancellationToken cancellationToken)
+    {
+        await _sender.Send(
+            new ResendEmailConfirmationCommand(request.Email),
+            cancellationToken);
+
+        Response.Headers.CacheControl = "no-store";
+
+        return Ok(new AuthMessageResponse(
+            "If an account with that email needs confirmation, a confirmation link has been sent."));
     }
 }

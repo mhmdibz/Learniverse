@@ -133,6 +133,30 @@ namespace Learniverse.API
                             AutoReplenishment = true
                         }));
 
+                options.AddPolicy("confirm-email", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(15),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+
+                options.AddPolicy("resend-confirmation", httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey:
+                            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 3,
+                            Window = TimeSpan.FromMinutes(15),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+
                 options.AddPolicy("forgot-password", httpContext =>
                     RateLimitPartition.GetFixedWindowLimiter(
                         partitionKey:
