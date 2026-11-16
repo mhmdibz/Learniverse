@@ -310,3 +310,30 @@ The course-list endpoint previously returned all visible courses in one response
 
 - The response shape of `GET /api/courses` is now a paged object rather than a bare list, so API consumers must read the `items` field and pagination metadata.
 - The repository performs counting and page selection in the database instead of loading all visible courses into application memory.
+
+---
+
+## ADR-009 — Email Confirmation
+
+**Status:** Accepted
+
+### Context
+
+New accounts should prove ownership of their email address before signing in. The API currently has no frontend, so the confirmation link must target a URL supplied through configuration and consumed by a future frontend.
+
+### Decision
+
+- Generate and verify email-confirmation tokens through ASP.NET Core Identity. Use a dedicated Data Protection token provider with a 24-hour lifespan; keep the default provider lifespan at one hour for password-reset tokens.
+- Send a confirmation message after registration and expose anonymous `POST /api/auth/confirm-email` and `POST /api/auth/resend-confirmation` endpoints.
+- Require confirmed email for sign-in. The bootstrap administrator remains confirmed by the existing seeding flow.
+- Return a generic response from the resend endpoint whether the address is unknown, already confirmed, or eligible for another message.
+- Apply IP-based Rate Limiting to both endpoints. Do not write confirmation tokens or links to logs.
+- Build links from the configured `EmailConfirmation:ConfirmationUrl`, never from request host data. Put the escaped email and Base64Url-encoded token in the URL fragment.
+- Keep email delivery behind the Application `IEmailSender` abstraction. Use `LoggingEmailSender` in Development and Resend's HTTP API outside Development.
+
+### Consequences
+
+- Email confirmation uses the existing Identity email-confirmed field and requires no database migration.
+- Users must open a frontend confirmation page that reads the URL fragment and submits the email and token to the API. That frontend page does not exist yet.
+- Production startup requires a valid HTTPS `EmailConfirmation:ConfirmationUrl` and valid Resend configuration. The sending domain must be verified with the provider before real delivery.
+- Development logging intentionally does not expose the confirmation token or link, so local manual confirmation requires a safe debugging or test mechanism.

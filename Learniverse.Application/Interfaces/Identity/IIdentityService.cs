@@ -24,4 +24,13 @@ public interface IIdentityService
         string token,
         string newPassword,
         CancellationToken cancellationToken);
+
+    Task<string?> GenerateEmailConfirmationTokenAsync(
+        string email,
+        CancellationToken cancellationToken);
+
+    Task<bool> ConfirmEmailAsync(
+        string email,
+        string token,
+        CancellationToken cancellationToken);
 }

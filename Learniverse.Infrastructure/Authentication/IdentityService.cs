@@ -159,6 +159,41 @@ public class IdentityService : IIdentityService
         return AuthenticationResult.Failure(
             AuthenticationFailureReason.InvalidCredentials);
     }
+    public async Task<string?> GenerateEmailConfirmationTokenAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user is null || user.EmailConfirmed)
+        {
+            return null;
+        }
+
+        return await _userManager.GenerateEmailConfirmationTokenAsync(user);
+    }
+
+    public async Task<bool> ConfirmEmailAsync(
+        string email,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByEmailAsync(email);
+
+        if (user is null || !TryDecodeBase64Url(token, out var identityToken))
+        {
+            return false;
+        }
+
+        var result = await _userManager.ConfirmEmailAsync(user, identityToken);
+
+        return result.Succeeded;
+    }
+
     public async Task<string?> GeneratePasswordResetTokenAsync(
     string email,
     CancellationToken cancellationToken)

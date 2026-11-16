@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddIdentityCore<ApplicationUser>(options =>
         {
             options.User.RequireUniqueEmail = true;
+            options.SignIn.RequireConfirmedEmail = true;
+            options.Tokens.EmailConfirmationTokenProvider = "EmailConfirmation";
             options.Password.RequiredLength = 8;
             options.Password.RequireDigit = true;
             options.Password.RequireLowercase = true;
@@ -37,7 +39,10 @@ public static class DependencyInjection
         .AddRoles<IdentityRole>()
         .AddSignInManager()
         .AddEntityFrameworkStores<AppDbContext>()
+        .AddTokenProvider<EmailConfirmationTokenProvider>("EmailConfirmation")
         .AddDefaultTokenProviders();
+
+        services.AddOptions<EmailConfirmationTokenProviderOptions>();
 
         services.Configure<DataProtectionTokenProviderOptions>(options =>
         {
