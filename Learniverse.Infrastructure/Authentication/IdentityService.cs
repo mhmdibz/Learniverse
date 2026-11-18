@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Common.Constants;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Identity;
+using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity;
 using System.Text;
@@ -12,18 +13,21 @@ public class IdentityService : IIdentityService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly SignInManager<ApplicationUser> _signInManager;
 
     public IdentityService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     SignInManager<ApplicationUser> signInManager,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IRefreshTokenRepository refreshTokenRepository)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _signInManager = signInManager;
         _unitOfWork = unitOfWork;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<string?> GetFullNameAsync(string userId)
@@ -226,15 +230,55 @@ public class IdentityService : IIdentityService
                 new[] { "The password reset token is invalid or expired." });
         }
 
-        var result = await _userManager.ResetPasswordAsync(
-            user,
-            identityToken,
-            newPassword);
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-        return result.Succeeded
-            ? PasswordResetResult.Success()
-            : PasswordResetResult.Failure(
-                result.Errors.Select(error => error.Description));
+        var transactionCompleted = false;
+
+        try
+        {
+            var result = await _userManager.ResetPasswordAsync(
+                user,
+                identityToken,
+                newPassword);
+
+            if (!result.Succeeded)
+            {
+                await _unitOfWork.RollbackTransactionAsync(
+                    CancellationToken.None);
+                transactionCompleted = true;
+
+                return PasswordResetResult.Failure(
+                    result.Errors.Select(error => error.Description));
+            }
+
+            var now = DateTime.UtcNow;
+            var activeRefreshTokens = await _refreshTokenRepository
+                .GetActiveByUserIdAsync(
+                    user.Id,
+                    now,
+                    cancellationToken);
+
+            foreach (var refreshToken in activeRefreshTokens)
+            {
+                refreshToken.Revoke(now);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            transactionCompleted = true;
+
+            return PasswordResetResult.Success();
+        }
+        catch
+        {
+            if (!transactionCompleted)
+            {
+                await _unitOfWork.RollbackTransactionAsync(
+                    CancellationToken.None);
+            }
+
+            throw;
+        }
     }
 
     private static bool TryDecodeBase64Url(

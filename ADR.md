@@ -203,9 +203,7 @@ Application use cases remain independent from ASP.NET Core Identity implementati
 
 Authentication and role claims are available to API authorization and current-user services.
 
-### Not Implemented
-
-Refresh-token support is not currently implemented.
+Refresh-token issuance and rotation are implemented as documented in ADR-010.
 
 ---
 
@@ -337,3 +335,30 @@ New accounts should prove ownership of their email address before signing in. Th
 - Users must open a frontend confirmation page that reads the URL fragment and submits the email and token to the API. That frontend page does not exist yet.
 - Production startup requires a valid HTTPS `EmailConfirmation:ConfirmationUrl` and valid Resend configuration. The sending domain must be verified with the provider before real delivery.
 - Development logging intentionally does not expose the confirmation token or link, so local manual confirmation requires a safe debugging or test mechanism.
+
+---
+
+## ADR-010 — Refresh Tokens
+
+**Status:** Accepted
+
+### Context
+
+The API issues short-lived JWT access tokens. Clients need a way to renew an authenticated session without resubmitting credentials, while the server must support token rotation, logout, and revocation after a password reset.
+
+### Decision
+
+- Issue a cryptographically random opaque refresh token after successful login. Store only its SHA-256 hash in a `RefreshTokens` table linked to the Identity user.
+- Support multiple device sessions by assigning each login a separate token family. Rotate the refresh token on every successful refresh and invalidate the token that was presented.
+- Set a 14-day inactivity expiration and a 30-day absolute session lifetime. Rotation does not extend the session beyond its absolute expiration.
+- Detect reuse of a revoked token and revoke the active tokens in its family. Use optimistic concurrency through a SQL Server `rowversion` column to prevent concurrent refresh requests from both succeeding.
+- Send the refresh token only in the `__Host-LearniverseRefreshToken` cookie with `HttpOnly`, `Secure`, `SameSite=Strict`, and `Path=/`. Keep the access token in the login/refresh JSON response.
+- Expose anonymous `POST /api/auth/refresh` and `POST /api/auth/logout` endpoints because refresh and logout are authorized by the cookie. Apply IP-based Rate Limiting to both.
+- Revoke a user's active refresh tokens in the same transaction as a successful password reset. Logout revokes the presented refresh token and clears its cookie.
+
+### Consequences
+
+- A database migration creates the refresh-token table. The API applies pending migrations at startup.
+- Refresh tokens are not exposed to browser JavaScript. A future browser client must send the cookie with requests; a frontend hosted on a different site may require revisiting the cookie, CORS, and CSRF policy.
+- Logout and password reset revoke refresh tokens, but already-issued access JWTs remain usable until their configured expiration (currently 60 minutes).
+- Reusing a rotated token revokes the whole token family, which can require that device to sign in again.

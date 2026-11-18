@@ -23,6 +23,7 @@ public class AppDbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public override async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)

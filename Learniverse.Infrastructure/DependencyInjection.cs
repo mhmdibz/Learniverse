@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
         services.AddHostedService<PaymentExpirationBackgroundService>();
 
@@ -74,6 +75,12 @@ public static class DependencyInjection
         services.AddSingleton<
             IValidateOptions<JwtOptions>,
             JwtOptionsValidator>();
+        services.AddOptions<RefreshTokenOptions>()
+            .BindConfiguration(RefreshTokenOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<
+            IValidateOptions<RefreshTokenOptions>,
+            RefreshTokenOptionsValidator>();
         services.AddSingleton<
         IValidateOptions<BootstrapAdminOptions>,
         BootstrapAdminOptionsValidator>();

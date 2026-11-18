@@ -2,4 +2,7 @@
 
 public sealed record LoginResult(
     string AccessToken,
-    DateTimeOffset ExpiresAtUtc);
+    DateTimeOffset ExpiresAtUtc,
+    string RefreshToken,
+    DateTimeOffset RefreshTokenExpiresAtUtc,
+    DateTimeOffset SessionAbsoluteExpiresAtUtc);
