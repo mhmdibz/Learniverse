@@ -8,14 +8,14 @@ public sealed class LoginCommandHandler
     : IRequestHandler<LoginCommand, LoginResult>
 {
     private readonly IIdentityService _identityService;
-    private readonly ITokenService _tokenService;
+    private readonly IRefreshTokenService _refreshTokenService;
 
     public LoginCommandHandler(
         IIdentityService identityService,
-        ITokenService tokenService)
+        IRefreshTokenService refreshTokenService)
     {
         _identityService = identityService;
-        _tokenService = tokenService;
+        _refreshTokenService = refreshTokenService;
     }
 
     public async Task<LoginResult> Handle(
@@ -45,11 +45,15 @@ public sealed class LoginCommandHandler
 
         var authenticatedUser = authenticationResult.User!;
 
-        var tokenResult =
-            _tokenService.GenerateToken(authenticatedUser);
+        var session = await _refreshTokenService.IssueAsync(
+            authenticatedUser,
+            cancellationToken);
 
         return new LoginResult(
-            tokenResult.AccessToken,
-            tokenResult.ExpiresAtUtc);
+            session.AccessToken,
+            session.AccessTokenExpiresAtUtc,
+            session.RefreshToken,
+            session.RefreshTokenExpiresAtUtc,
+            session.SessionAbsoluteExpiresAtUtc);
     }
 }
