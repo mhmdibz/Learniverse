@@ -6,11 +6,15 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Learniverse.Persistence.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
+using Learniverse.Application.Exceptions;
 
 namespace Learniverse.Persistence.Context;
 
 public class AppDbContext
-    : IdentityDbContext<ApplicationUser>, IUnitOfWork
+    : IdentityDbContext<ApplicationUser>,
+      IUnitOfWork,
+      IPaymentNotificationUnitOfWork
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
@@ -49,6 +53,33 @@ public class AppDbContext
         }
 
         return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> SavePaymentNotificationChangesAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new RetryablePersistenceConflictException(exception);
+        }
+        catch (DbUpdateException exception)
+            when (IsDuplicateEnrollmentConflict(exception))
+        {
+            throw new RetryablePersistenceConflictException(exception);
+        }
+    }
+
+    private static bool IsDuplicateEnrollmentConflict(
+        DbUpdateException exception)
+    {
+        var sqlException = exception.GetBaseException() as SqlException;
+
+        return sqlException is { Number: 2601 or 2627 } &&
+            exception.Entries.Any(entry => entry.Entity is Enrollment);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
