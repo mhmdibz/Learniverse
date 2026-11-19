@@ -364,3 +364,28 @@ The API issues short-lived JWT access tokens. Clients need a way to renew an aut
 - Refresh tokens are not exposed to browser JavaScript. A future browser client must send the cookie with requests; a frontend hosted on a different site may require revisiting the cookie, CORS, and CSRF policy.
 - Logout and password reset revoke refresh tokens, but already-issued access JWTs remain usable until their configured expiration (currently 60 minutes).
 - Reusing a rotated token revokes the whole token family, which can require that device to sign in again.
+
+---
+
+## ADR-011 — Logging, Metrics & Distributed Tracing
+
+**Status:** Accepted
+
+### Context
+
+The API needs structured application logs and operational telemetry that can help diagnose requests and observe application and dependency behavior. The hosting platform and telemetry backend have not yet been selected.
+
+### Decision
+
+- Use Serilog as the API logging provider, writing structured logs to the console and routing the existing `ILogger` messages through Serilog.
+- Add one HTTP request summary log with method, path, status code, and elapsed time. Do not capture request or response bodies, headers, cookies, passwords, tokens, or payment data.
+- Use OpenTelemetry instrumentation for incoming ASP.NET Core requests, outgoing `HttpClient` calls, SQL Client operations, and .NET runtime metrics.
+- In Development, export traces and metrics to the console for local inspection.
+- Export traces and metrics through OTLP when `OpenTelemetry:Otlp:Endpoint` is configured. Do not assume a collector URL or hosting provider in application code.
+- Do not capture SQL query parameters.
+
+### Consequences
+
+- The API can emit logs locally and provide traces and metrics to a compatible OTLP collector when one is configured.
+- Production telemetry collection requires selecting and operating an OTLP-compatible collector or backend and supplying its endpoint through environment configuration.
+- Console exporters are intended for local development; production deployments should configure an OTLP destination rather than rely on console output for telemetry retention.

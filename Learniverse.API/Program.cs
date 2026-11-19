@@ -18,6 +18,11 @@ using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.OpenApi;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Events;
 namespace Learniverse.API
 {
     public class Program
@@ -25,6 +30,58 @@ namespace Learniverse.API
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            builder.Host.UseSerilog((_, _, loggerConfiguration) =>
+            {
+                loggerConfiguration
+                    .MinimumLevel.Information()
+                    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console();
+            });
+
+            var serviceName = "Learniverse.API";
+            var otlpEndpoint = builder.Configuration["OpenTelemetry:Otlp:Endpoint"];
+
+            builder.Services
+                .AddOpenTelemetry()
+                .ConfigureResource(resource => resource.AddService(serviceName))
+                .WithTracing(tracing =>
+                {
+                    tracing
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
+                        .AddSqlClientInstrumentation();
+
+                    if (builder.Environment.IsDevelopment())
+                    {
+                        tracing.AddConsoleExporter();
+                    }
+
+                    if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))
+                    {
+                        tracing.AddOtlpExporter(options => options.Endpoint = endpoint);
+                    }
+                })
+                .WithMetrics(metrics =>
+                {
+                    metrics
+                        .AddAspNetCoreInstrumentation()
+                        .AddHttpClientInstrumentation()
+                        .AddRuntimeInstrumentation()
+                        .AddSqlClientInstrumentation();
+
+                    if (builder.Environment.IsDevelopment())
+                    {
+                        metrics.AddConsoleExporter();
+                    }
+
+                    if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))
+                    {
+                        metrics.AddOtlpExporter(options => options.Endpoint = endpoint);
+                    }
+                });
+
             builder.Services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
@@ -235,6 +292,8 @@ namespace Learniverse.API
                     app.Lifetime.ApplicationStopping);
             }
             app.UseForwardedHeaders();
+
+            app.UseSerilogRequestLogging();
 
             app.UseMiddleware<GlobalExceptionMiddleware>();
 
