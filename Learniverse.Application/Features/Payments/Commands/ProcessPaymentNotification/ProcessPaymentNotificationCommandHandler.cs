@@ -18,7 +18,7 @@ public sealed class ProcessPaymentNotificationCommandHandler
     private readonly IPaymentRepository _paymentRepository;
     private readonly IEnrollmentRepository _enrollmentRepository;
     private readonly ICourseRepository _courseRepository;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IPaymentNotificationUnitOfWork _unitOfWork;
     private readonly ILogger<ProcessPaymentNotificationCommandHandler> _logger;
 
     public ProcessPaymentNotificationCommandHandler(
@@ -26,7 +26,7 @@ public sealed class ProcessPaymentNotificationCommandHandler
         IPaymentRepository paymentRepository,
         IEnrollmentRepository enrollmentRepository,
         ICourseRepository courseRepository,
-        IUnitOfWork unitOfWork,
+        IPaymentNotificationUnitOfWork unitOfWork,
         ILogger<ProcessPaymentNotificationCommandHandler> logger)
     {
         _paymentGateway = paymentGateway;
@@ -38,6 +38,25 @@ public sealed class ProcessPaymentNotificationCommandHandler
     }
 
     public async Task<ProcessPaymentNotificationResponse> Handle(
+        ProcessPaymentNotificationCommand request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await HandleCore(request, cancellationToken);
+        }
+        catch (Learniverse.Application.Exceptions.RetryablePersistenceConflictException)
+        {
+            _logger.LogWarning(
+                "A Paymob notification encountered a persistence conflict and should be retried.");
+
+            return new ProcessPaymentNotificationResponse(
+                Acknowledged: false,
+                Retryable: true);
+        }
+    }
+
+    private async Task<ProcessPaymentNotificationResponse> HandleCore(
         ProcessPaymentNotificationCommand request,
         CancellationToken cancellationToken)
     {
@@ -265,7 +284,8 @@ public sealed class ProcessPaymentNotificationCommandHandler
         try
         {
             await update();
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.SavePaymentNotificationChangesAsync(
+                cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
         }
         catch

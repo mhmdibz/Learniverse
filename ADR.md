@@ -251,6 +251,8 @@ Students with `Active` or `Completed` enrollments retain access to `Archived` co
 
 Paymob is the selected payment provider and is integrated behind the `IPaymentGateway` abstraction. Starting a payment creates a payment attempt for a published paid course. A verified server-side Paymob notification, rather than a browser redirect, confirms payment and triggers enrollment provisioning. Duplicate notifications are handled without provisioning the enrollment more than once. A cancelled enrollment is reactivated when a later successful payment is confirmed.
 
+Concurrent persistence conflicts while processing a verified notification, including payment row-version conflicts and duplicate enrollment insertion, are rolled back and returned as retryable webhook responses (`503 Service Unavailable`). Paymob's retry behavior for these responses must be confirmed before production.
+
 Administrators can request a full refund through Paymob. Refund status is tracked locally and reconciled against the provider before the payment and related enrollment are updated. The payment, enrollment, webhook, and refund flows have been exercised in Paymob Test Mode.
 
 ## Pending Decisions — Enrollment & Payment

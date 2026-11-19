@@ -18,6 +18,8 @@ public static class DependencyInjection
     {
         services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
+        services.AddScoped<IPaymentNotificationUnitOfWork>(provider =>
+            provider.GetRequiredService<AppDbContext>());
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(
