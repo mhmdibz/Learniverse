@@ -2,6 +2,7 @@
 using Learniverse.Application.Interfaces.Identity;
 using Learniverse.Application.Interfaces.Payments;
 using Learniverse.Infrastructure.Authentication;
+using Learniverse.Infrastructure.Caching;
 using Learniverse.Infrastructure.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,7 @@ using System.Text;
 using Learniverse.Application.Interfaces.Email;
 using Learniverse.Infrastructure.Email;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 namespace Learniverse.Infrastructure;
 
@@ -22,6 +24,29 @@ public static class DependencyInjection
         IConfiguration configuration,
         IHostEnvironment environment)
     {
+        var redisConnectionString = configuration.GetConnectionString("Redis");
+
+        if (string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            if (environment.IsDevelopment())
+            {
+                redisConnectionString = "localhost:6379";
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:Redis must be configured outside Development.");
+            }
+        }
+
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnectionString;
+            options.InstanceName = "Learniverse:";
+        });
+
+        services.AddSingleton<ICacheService, RedisCacheService>();
+
         services.AddDataProtection();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();

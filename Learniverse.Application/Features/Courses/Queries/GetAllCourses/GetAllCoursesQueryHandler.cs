@@ -11,15 +11,20 @@ public sealed class GetAllCoursesQueryHandler
         GetAllCoursesQuery,
         PagedResult<GetAllCoursesResponse>>
 {
+    private static readonly TimeSpan CacheExpiration = TimeSpan.FromMinutes(5);
+
     private readonly ICourseRepository _courseRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ICacheService _cacheService;
 
     public GetAllCoursesQueryHandler(
         ICourseRepository courseRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ICacheService cacheService)
     {
         _courseRepository = courseRepository;
         _currentUserService = currentUserService;
+        _cacheService = cacheService;
     }
 
     public async Task<PagedResult<GetAllCoursesResponse>> Handle(
@@ -31,6 +36,35 @@ public sealed class GetAllCoursesQueryHandler
         var isAdmin = roles.Contains(Roles.Admin);
         var instructorId = _currentUserService.UserIdOrNull;
 
+        if (!_currentUserService.IsAuthenticated)
+        {
+            return await _cacheService.GetOrCreateAsync(
+                CourseCacheKeys.PublicList(
+                    request.PageNumber,
+                    request.PageSize),
+                CourseCacheKeys.PublicListTag,
+                cacheCancellationToken => GetPageAsync(
+                    isAdmin: false,
+                    instructorId: null,
+                    request,
+                    cacheCancellationToken),
+                CacheExpiration,
+                cancellationToken);
+        }
+
+        return await GetPageAsync(
+            isAdmin,
+            instructorId,
+            request,
+            cancellationToken);
+    }
+
+    private async Task<PagedResult<GetAllCoursesResponse>> GetPageAsync(
+        bool isAdmin,
+        string? instructorId,
+        GetAllCoursesQuery request,
+        CancellationToken cancellationToken)
+    {
         var page = await _courseRepository.GetAllAsync(
             isAdmin,
             instructorId,

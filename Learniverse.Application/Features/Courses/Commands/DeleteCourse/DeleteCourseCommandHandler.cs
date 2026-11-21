@@ -1,5 +1,6 @@
 ﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Interfaces.Common;
+using Learniverse.Application.Common.Constants;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Application.Services;
 using Learniverse.Domain.Entities;
@@ -17,14 +18,16 @@ namespace Learniverse.Application.Features.Courses.Commands.DeleteCourse
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly ICourseAuthorizationService _courseAuthorizationService;
+        private readonly ICacheService _cacheService;
 
         public DeleteCourseCommandHandler(ICourseRepository courseRepository,
-            IUnitOfWork unitOfWork, ICurrentUserService currentUserService, ICourseAuthorizationService courseAuthorizationService)
+            IUnitOfWork unitOfWork, ICurrentUserService currentUserService, ICourseAuthorizationService courseAuthorizationService, ICacheService cacheService)
         {
             _courseRepository = courseRepository;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _courseAuthorizationService = courseAuthorizationService;
+            _cacheService = cacheService;
         }
         public async Task Handle(DeleteCourseCommand request, CancellationToken cancellationToken)
         {
@@ -34,6 +37,9 @@ namespace Learniverse.Application.Features.Courses.Commands.DeleteCourse
             _courseAuthorizationService.EnsureCanModify(course);
             course.DeleteWithSections(_currentUserService.UserId);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cacheService.InvalidateTagAsync(
+                CourseCacheKeys.PublicListTag,
+                cancellationToken);
         }
 
     }

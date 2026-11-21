@@ -1,4 +1,5 @@
 ﻿using Learniverse.Application.Features.Courses.Commands.CreateCourse;
+using Learniverse.Application.Common.Constants;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
 using Learniverse.Application.Exceptions;
@@ -11,17 +12,20 @@ public sealed class CreateCourseCommandHandler : IRequestHandler<CreateCourseCom
     private readonly ICategoryRepository _categoryRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICacheService _cacheService;
 
     public CreateCourseCommandHandler(
         ICourseRepository courseRepository,
         ICategoryRepository categoryRepository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ICacheService cacheService)
     {
         _courseRepository = courseRepository;
         _categoryRepository = categoryRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _cacheService = cacheService;
     }
 
     public async Task<Guid> Handle(CreateCourseCommand request, CancellationToken cancellationToken)
@@ -42,6 +46,10 @@ public sealed class CreateCourseCommandHandler : IRequestHandler<CreateCourseCom
 
         await _courseRepository.AddAsync(course, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _cacheService.InvalidateTagAsync(
+            CourseCacheKeys.PublicListTag,
+            cancellationToken);
 
         return course.Id;
     }

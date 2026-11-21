@@ -1,6 +1,7 @@
 ﻿using Learniverse.Application.Exceptions;
 using Learniverse.Application.Interfaces.Common;
 using Learniverse.Application.Interfaces.Repositories;
+using Learniverse.Application.Common.Constants;
 using Learniverse.Domain.Entities;
 using MediatR;
 using System;
@@ -14,14 +15,17 @@ namespace Learniverse.Application.Features.Courses.Commands.UpdateCourse
         private readonly ICourseRepository _courseRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICourseAuthorizationService _courseAuthorizationService;
+        private readonly ICacheService _cacheService;
 
         public UpdateCourseCommandHandler(ICourseRepository courseRepository,
              ICourseAuthorizationService courseAuthorizationService,
-             IUnitOfWork unitOfWork)
+             IUnitOfWork unitOfWork,
+             ICacheService cacheService)
         {
             _courseRepository = courseRepository;
             _courseAuthorizationService = courseAuthorizationService;
             _unitOfWork = unitOfWork;
+            _cacheService = cacheService;
 
         }
         public async Task Handle(UpdateCourseCommand request, CancellationToken cancellationToken)
@@ -41,6 +45,9 @@ namespace Learniverse.Application.Features.Courses.Commands.UpdateCourse
                 request.Price,
                 request.Status);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cacheService.InvalidateTagAsync(
+                CourseCacheKeys.PublicListTag,
+                cancellationToken);
         }
     }
 }
